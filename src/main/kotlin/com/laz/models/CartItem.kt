@@ -3,6 +3,7 @@ package com.laz.models
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 
@@ -23,8 +24,9 @@ import androidx.room.Relation
         )
     ],
     indices = [
-        androidx.room.Index(value = ["userId"]),
-        androidx.room.Index(value = ["productId"])
+        Index(value = ["userId"]),
+        Index(value = ["productId"]),
+        Index(value = ["userId", "productId"], unique = true)
     ]
 )
 data class CartItem(
