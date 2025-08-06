@@ -1,5 +1,5 @@
 plugins {
-    id("com.android.application") version "8.10.1"
+    id("com.android.application") version "8.2.2"
     id("org.jetbrains.kotlin.android") version "1.9.22"
     id("com.google.devtools.ksp") version "1.9.22-1.0.17"
     id("org.jetbrains.kotlin.plugin.parcelize") version "1.9.22"
@@ -34,6 +34,12 @@ android {
     
     lint {
         abortOnError = false
+    }
+    
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
     }
     
     compileOptions {

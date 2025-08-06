@@ -29,9 +29,17 @@ class ProductViewModel(private val ProductDao : ProductDao ) : ViewModel() {
 
     fun fetchAllProducts() {
         viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = null
-
+            try {
+                _isLoading.value = true
+                _errorMessage.value = null
+                val productList = ProductDao.getAllProducts()
+                _products.value = productList
+                _allProducts.value = productList
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to load products: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -41,8 +49,21 @@ class ProductViewModel(private val ProductDao : ProductDao ) : ViewModel() {
 
     private fun loadProducts() {
         viewModelScope.launch {
-            // Replace with your actual data fetching logic (e.g., from a repository)
-            
+            try {
+                _isLoading.value = true
+                val productList = ProductDao.getAllProducts()
+                _products.value = productList
+                _allProducts.value = productList
+                
+                // If no products, load initial data
+                if (productList.isEmpty()) {
+                    loadInitialData()
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Error loading products: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 

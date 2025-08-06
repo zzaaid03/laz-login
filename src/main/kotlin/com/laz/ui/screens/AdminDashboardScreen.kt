@@ -24,6 +24,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
 import com.laz.R
 import com.laz.models.User
+import com.laz.ui.components.ActionCard
+import com.laz.ui.components.StatCard
 import com.laz.viewmodels.ProductViewModel
 import com.laz.viewmodels.SalesViewModel
 import com.laz.viewmodels.UserViewModel
@@ -137,12 +139,12 @@ fun AdminDashboardScreen(
                 ) {
                     items(
                         listOf(
-                            StatCard("Total Sales", "JOD ${String.format(java.util.Locale.US, "%.2f", totalSales)}", Icons.Default.AttachMoney, LazRedGlow),
-                            StatCard("Products", totalProducts.toString(), Icons.Default.Inventory, LazRed),
-                            StatCard("Low Stock", lowStockItems.toString(), Icons.Default.Warning, LazRedGlow),
-                            StatCard("Users", totalUsers.toString(), Icons.Default.People, LazRed),
-                            StatCard("Today's Sales", "JOD ${String.format(java.util.Locale.US, "%.2f", todaySales)}", Icons.AutoMirrored.Filled.TrendingUp, LazRedGlow),
-                            StatCard("Returns", totalReturns.toString(), Icons.AutoMirrored.Filled.AssignmentReturn, LazRed)
+                            StatCard("Total Sales", "JOD ${String.format(java.util.Locale.US, "%.2f", totalSales)}", Icons.Default.AttachMoney, LazRedGlow, onClick = {}),
+                            StatCard("Products", totalProducts.toString(), Icons.Default.Inventory, LazRed, onClick = {}),
+                            StatCard("Low Stock", lowStockItems.toString(), Icons.Default.Warning, LazRedGlow, onClick = {}),
+                            StatCard("Users", totalUsers.toString(), Icons.Default.People, LazRed, onClick = {}),
+                            StatCard("Today's Sales", "JOD ${String.format(java.util.Locale.US, "%.2f", todaySales)}", Icons.AutoMirrored.Filled.TrendingUp, LazRedGlow, onClick = {}),
+                            StatCard("Returns", totalReturns.toString(), Icons.AutoMirrored.Filled.AssignmentReturn, LazRed, onClick = {})
                         )
                     ) { stat ->
                         StatisticCard(stat)
@@ -348,14 +350,7 @@ fun AdminActionCard(action: ActionCard) {
     }
 }
 
-data class StatCard(
-    val title: String,
-    val value: String,
-    val icon: ImageVector,
-    val color: androidx.compose.ui.graphics.Color
-)
-
-data class ActionCard(
+data class statCard(
     val title: String,
     val description: String,
     val icon: ImageVector,

@@ -21,10 +21,36 @@ class SalesViewModel(
     private val _sales = MutableStateFlow<List<Sale>>(emptyList())
     val sales: StateFlow<List<Sale>> = _sales.asStateFlow()
     
+    private val _userSales = MutableStateFlow<List<Sale>>(emptyList())
+    val userSales: StateFlow<List<Sale>> = _userSales.asStateFlow()
+    
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+    
     init {
         viewModelScope.launch {
             saleDao.getAllSalesFlow().collect { salesList ->
                 _sales.value = salesList
+            }
+        }
+    }
+    
+    fun fetchSalesByUserId(userId: String) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _errorMessage.value = null
+                
+                // Filter sales by user ID
+                val userSalesList = _sales.value.filter { it.userId.toString() == userId }
+                _userSales.value = userSalesList
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "An error occurred fetching sales"
+            } finally {
+                _isLoading.value = false
             }
         }
     }

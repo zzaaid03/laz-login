@@ -23,6 +23,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.Image
 import com.laz.R
 import com.laz.models.User
+import com.laz.ui.components.ActionCard
+import com.laz.ui.components.StatCard
 import com.laz.viewmodels.ProductViewModel
 import com.laz.viewmodels.SalesViewModel
 import com.laz.viewmodels.ReturnsViewModel
@@ -119,12 +121,45 @@ fun EmployeeDashboardScreen(
                 ) {
                     items(
                         listOf(
-                            com.laz.ui.screens.StatCard("Today's Sales", "JOD ${String.format(java.util.Locale.US, "%.2f", todaySales)}", Icons.AutoMirrored.Filled.TrendingUp, LazRedGlow),
-                            com.laz.ui.screens.StatCard("Low Stock Items", lowStockCount.toString(), Icons.Default.Warning, LazRed),
-                            com.laz.ui.screens.StatCard("Recent Returns", totalReturns.toString(), Icons.AutoMirrored.Filled.AssignmentReturn, LazRedGlow)
+                            StatCard("Today's Sales", "JOD ${String.format(java.util.Locale.US, "%.2f", todaySales)}", Icons.AutoMirrored.Filled.TrendingUp, LazRedGlow, onClick = {}),
+                            StatCard("Low Stock Items", lowStockCount.toString(), Icons.Default.Warning, LazRed, onClick = {}),
+                            StatCard("Recent Returns", totalReturns.toString(), Icons.AutoMirrored.Filled.AssignmentReturn, LazRedGlow, onClick = {})
                         )
                     ) { stat ->
-                        com.laz.ui.screens.StatisticCard(stat)
+                        // Use the StatCard directly as we don't have a StatisticCard component
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(80.dp),
+                            colors = CardDefaults.cardColors(containerColor = LazDarkCard)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = stat.icon,
+                                    contentDescription = stat.title,
+                                    tint = LazRed,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = stat.title,
+                                    fontSize = 12.sp,
+                                    color = LazWhite,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = stat.value,
+                                    fontSize = 16.sp,
+                                    color = LazWhite,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }

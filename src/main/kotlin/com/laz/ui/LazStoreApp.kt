@@ -3,12 +3,14 @@ package com.laz.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Modifier
 import com.laz.models.User
 import com.laz.models.UserRole
 import com.laz.ui.screens.*
 import com.laz.ui.theme.*
 import com.laz.viewmodels.*
+import kotlinx.coroutines.launch
 
 // Android version of the main app - uses ViewModels instead of Spring services
 
@@ -17,10 +19,12 @@ fun LazStoreApp(
     userViewModel: UserViewModel,
     productViewModel: ProductViewModel,
     salesViewModel: SalesViewModel,
-    returnsViewModel: ReturnsViewModel
+    returnsViewModel: ReturnsViewModel,
+    cartViewModel: CartViewModel
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Login) }
     var currentUser by remember { mutableStateOf<User?>(null) }
+    val scope = rememberCoroutineScope()
 
     LazTheme {
         Surface(
@@ -85,12 +89,16 @@ fun LazStoreApp(
                 is Screen.CustomerDashboard -> {
                     CustomerDashboardScreen(
                         user = currentUser!!,
-
+                        userViewModel = userViewModel,
+                        productViewModel = productViewModel,
+                        cartViewModel = cartViewModel,
                         onLogout = {
                             currentUser = null
                             currentScreen = Screen.Login
                         },
-                        onNavigate = { screen: Screen -> currentScreen = screen }
+                        onNavigate = { screen ->
+                            currentScreen = screen
+                        }
                     )
                 }
                 is Screen.ProductManagement -> {
@@ -158,40 +166,55 @@ fun LazStoreApp(
                     )
                 }
                 is Screen.ProductScreen -> {
-                    // Replace with your actual ProductScreen composable and its parameters
-                    // For example:
-                    // ProductScreen(
-                    //     productViewModel = productViewModel,
-                    //     onBack = {
-                    //         currentScreen = when (currentUser?.role) { // Use safe call here
-                    //             UserRole.ADMIN -> Screen.AdminDashboard
-                    //             UserRole.EMPLOYEE -> Screen.EmployeeDashboard
-                    //             UserRole.CUSTOMER -> Screen.CustomerDashboard
-                    //             null -> Screen.Login // Or some other default if user is null
-                    //         }
-                    //     }
-                    // )
-
-                    // Placeholder if you haven't created the UI yet:
-                    Text("Product Screen WIP") // TODO: Implement ProductScreen
+                    ProductScreen(
+                        productViewModel = productViewModel,
+                        onNavigateBack = {
+                            currentScreen = when (currentUser?.role) { // Use safe call here
+                                UserRole.ADMIN -> Screen.AdminDashboard
+                                UserRole.EMPLOYEE -> Screen.EmployeeDashboard
+                                UserRole.CUSTOMER -> Screen.CustomerDashboard
+                                null -> Screen.Login // Or some other default if user is null
+                            }
+                        },
+                        onAddToCart = { product ->
+                            // Add product to cart and navigate to cart screen
+                            scope.launch {
+                                cartViewModel.addToCart(currentUser!!.id, product)
+                                currentScreen = Screen.Cart
+                            }
+                        }
+                    )
                 }
                 is Screen.ChatScreen -> {
-                    // Replace with your actual ProductScreen composable and its parameters
-                    // For example:
-                    // ProductScreen(
-                    //     productViewModel = productViewModel,
-                    //     onBack = {
-                    //         currentScreen = when (currentUser?.role) { // Use safe call here
-                    //             UserRole.ADMIN -> Screen.AdminDashboard
-                    //             UserRole.EMPLOYEE -> Screen.EmployeeDashboard
-                    //             UserRole.CUSTOMER -> Screen.CustomerDashboard
-                    //             null -> Screen.Login // Or some other default if user is null
-                    //         }
-                    //     }
-                    // )
-
-                    // Placeholder if you haven't created the UI yet:
-                    Text("Product Screen WIP") // TODO: Implement ProductScreen
+                    ChatScreen(
+                        chatViewModel = viewModel()
+                    )
+                }
+                is Screen.OrderHistory -> {
+                    OrderHistoryScreen(
+                        salesViewModel = salesViewModel,
+                        currentUser = currentUser!!,
+                        onNavigateBack = {
+                            currentScreen = Screen.CustomerDashboard
+                        }
+                    )
+                }
+                is Screen.Profile -> {
+                    ProfileScreen(
+                        userViewModel = userViewModel,
+                        onNavigateBack = {
+                            currentScreen = Screen.CustomerDashboard
+                        }
+                    )
+                }
+                is Screen.Cart -> {
+                    CartScreen(
+                        user = currentUser!!,
+                        cartViewModel = cartViewModel,
+                        onNavigateBack = {
+                            currentScreen = Screen.CustomerDashboard
+                        }
+                    )
                 }
             }
         }
@@ -211,6 +234,9 @@ sealed class Screen {
     object Signup : Screen()
     object ProductScreen : Screen()
     object ChatScreen : Screen()
+    object OrderHistory : Screen()
+    object Profile : Screen()
+    object Cart : Screen()
     companion object {
 
     }

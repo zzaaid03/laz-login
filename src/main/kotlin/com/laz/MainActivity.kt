@@ -29,8 +29,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ChatScreen() // <- add this line just to test it
-
                     // Create ViewModels with database DAOs
                     val userViewModel: UserViewModel = viewModel {
                         UserViewModel(database.userDao())
@@ -44,12 +42,16 @@ class MainActivity : ComponentActivity() {
                     val returnsViewModel: ReturnsViewModel = viewModel {
                         ReturnsViewModel(database.returnDao(), database.saleDao(), database.productDao())
                     }
+                    val cartViewModel: CartViewModel = viewModel {
+                        CartViewModel(database.cartDao(), database.productDao())
+                    }
                     
                     LazStoreApp(
                         userViewModel = userViewModel,
                         productViewModel = productViewModel,
                         salesViewModel = salesViewModel,
-                        returnsViewModel = returnsViewModel
+                        returnsViewModel = returnsViewModel,
+                        cartViewModel = cartViewModel
                     )
                 }
             }

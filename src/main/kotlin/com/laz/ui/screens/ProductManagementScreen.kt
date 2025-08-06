@@ -6,21 +6,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.laz.models.Product
+import com.laz.models.UserRole
 import com.laz.viewmodels.ProductViewModel
 import com.laz.ui.theme.*
 import java.math.BigDecimal
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.livedata.observeAsState
 
 // In Python, this would be like a product management interface
 // class ProductManager:
@@ -36,8 +40,15 @@ fun ProductManagementScreen(
     onBack: () -> Unit
 ) {
     // Use StateFlow from ViewModel for automatic updates
-    val products by productViewModel.products.collectAsState()
+    val products by productViewModel.products.collectAsState(initial = emptyList())
+    val isLoading by productViewModel.isLoading.collectAsState()
+    val errorMessage by productViewModel.errorMessage.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    
+    // Load products when the screen is first displayed
+    LaunchedEffect(Unit) {
+        productViewModel.fetchAllProducts()
+    }
 
     var showAddDialog by remember { mutableStateOf(false) }
     var newProductName by remember { mutableStateOf("") }
@@ -231,7 +242,7 @@ fun ProductManagementScreen(
                                     quantity = newProductQuantity.toIntOrNull() ?: 0,
                                     cost = BigDecimal(cleanCost),
                                     price = BigDecimal(cleanPrice),
-                                    shelfLocation = newProductShelf.trim().ifBlank { null }
+                                    shelfLocation = newProductShelf.trim().ifEmpty { null }
                                 )
                                 showAddDialog = false
 
@@ -243,8 +254,8 @@ fun ProductManagementScreen(
                                 newProductShelf = ""
                             }
                         } catch (e: NumberFormatException) {
-                            // Invalid number format - just ignore the action
-                            // In a real app, you'd show an error message
+                            // Show error message
+                            productViewModel.errorMessage.value = "Invalid number format: ${e.message}"
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -269,6 +280,29 @@ fun ProductManagementScreen(
             containerColor = LazDarkCard
         )
     }
+    
+    // Show loading indicator
+    if (isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(LazDarkBackground.copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = LazRed)
+        }
+    }
+    
+    // Show error message if any
+    errorMessage?.let { message ->
+        LaunchedEffect(message) {
+            // Show snackbar with error message
+            // In a real app, you'd use a SnackbarHost
+            println("Error: $message")
+            // Clear error after showing
+            productViewModel.errorMessage.value = null
+        }
+    }
 
     // Edit Product Dialog
     if (showEditDialog && productToEdit != null) {
@@ -280,61 +314,46 @@ fun ProductManagementScreen(
                     OutlinedTextField(
                         value = editProductName,
                         onValueChange = { editProductName = it },
-                        label = { Text("Product Name", color = LazLightGray) },
+                        label = { Text("Product Name") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LazWhite,
-                            unfocusedTextColor = LazWhite,
-                            cursorColor = LazRed,
                             focusedBorderColor = LazRed,
-                            unfocusedBorderColor = LazGray
+                            focusedLabelColor = LazRed
                         )
                     )
                     OutlinedTextField(
                         value = editProductQuantity,
                         onValueChange = { editProductQuantity = it },
-                        label = { Text("Quantity", color = LazLightGray) },
+                        label = { Text("Quantity") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LazWhite,
-                            unfocusedTextColor = LazWhite,
-                            cursorColor = LazRed,
                             focusedBorderColor = LazRed,
-                            unfocusedBorderColor = LazGray
+                            focusedLabelColor = LazRed
                         )
                     )
                     OutlinedTextField(
                         value = editProductCost,
                         onValueChange = { editProductCost = it },
-                        label = { Text("Cost (JOD)", color = LazLightGray) },
+                        label = { Text("Cost (JOD)") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LazWhite,
-                            unfocusedTextColor = LazWhite,
-                            cursorColor = LazRed,
                             focusedBorderColor = LazRed,
-                            unfocusedBorderColor = LazGray
+                            focusedLabelColor = LazRed
                         )
                     )
                     OutlinedTextField(
                         value = editProductPrice,
                         onValueChange = { editProductPrice = it },
-                        label = { Text("Price (JOD)", color = LazLightGray) },
+                        label = { Text("Price (JOD)") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LazWhite,
-                            unfocusedTextColor = LazWhite,
-                            cursorColor = LazRed,
                             focusedBorderColor = LazRed,
-                            unfocusedBorderColor = LazGray
+                            focusedLabelColor = LazRed
                         )
                     )
                     OutlinedTextField(
                         value = editProductShelf,
                         onValueChange = { editProductShelf = it },
-                        label = { Text("Shelf Location", color = LazLightGray) },
+                        label = { Text("Shelf Location") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = LazWhite,
-                            unfocusedTextColor = LazWhite,
-                            cursorColor = LazRed,
                             focusedBorderColor = LazRed,
-                            unfocusedBorderColor = LazGray
+                            focusedLabelColor = LazRed
                         )
                     )
                 }
@@ -353,13 +372,14 @@ fun ProductManagementScreen(
                                         quantity = editProductQuantity.toIntOrNull() ?: 0,
                                         cost = BigDecimal(cleanCost),
                                         price = BigDecimal(cleanPrice),
-                                        shelfLocation = editProductShelf.trim().ifBlank { null }
+                                        shelfLocation = editProductShelf.trim().ifEmpty { null }
                                     )
                                     productViewModel.updateProduct(updatedProductData)
                                     showEditDialog = false
                                 }
                             } catch (e: NumberFormatException) {
-                                // Handle error
+                                // Show error message
+                                productViewModel.errorMessage.value = "Invalid number format: ${e.message}"
                             }
                         }
                     },
