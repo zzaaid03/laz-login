@@ -76,6 +76,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.laz.models.Product
 import com.laz.viewmodels.SecureFirebaseProductViewModel
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -87,7 +88,7 @@ private object DefaultSpacing {
 }
 
 // Create a LocalSpacing CompositionLocal
-val LocalSpacing = staticCompositionLocalOf { DefaultSpacing }
+private val LocalSpacing = staticCompositionLocalOf { DefaultSpacing }
 
 // Constants
 private const val LOW_STOCK_THRESHOLD = 10
