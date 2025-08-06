@@ -54,23 +54,16 @@ class FirebaseUserRepository {
 
     /**
      * Get user by Firebase UID
-     * Uses direct lookup to avoid index requirement
+     * Uses indexed query for better performance
      */
     suspend fun getUserByFirebaseUid(firebaseUid: String): Result<User?> {
         return try {
-            // Get all users and filter by firebaseUid to avoid index requirement
-            val snapshot = usersRef.get().await()
+            // Use indexed query for better performance
+            val query = usersRef.orderByChild("firebaseUid").equalTo(firebaseUid)
+            val snapshot = query.get().await()
             
-            var foundUser: User? = null
-            for (childSnapshot in snapshot.children) {
-                val firebaseUidValue = childSnapshot.child("firebaseUid").getValue(String::class.java)
-                if (firebaseUidValue == firebaseUid) {
-                    foundUser = childSnapshot.toUser()
-                    break
-                }
-            }
-            
-            Result.success(foundUser)
+            val user = snapshot.children.firstOrNull()?.toUser()
+            Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
         }

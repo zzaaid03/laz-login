@@ -1,10 +1,9 @@
 plugins {
-    id("com.android.application") version "8.11.1"
+    id("com.android.application") version "8.2.2"
     id("org.jetbrains.kotlin.android") version "1.9.22"
-    id("com.google.devtools.ksp") version "1.9.22-1.0.17"
     id("org.jetbrains.kotlin.plugin.parcelize") version "1.9.22"
     // Add the Google services Gradle plugin
-    id("com.google.gms.google-services") version "4.3.13"
+    id("com.google.gms.google-services") version "4.4.0"
 }
 
 android {
@@ -87,10 +86,10 @@ dependencies {
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     
-    // Room Database
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    // Room Database - Removed for Firebase migration
+    // implementation("androidx.room:room-runtime:2.6.1")
+    // implementation("androidx.room:room-ktx:2.6.1")
+    // ksp("androidx.room:room-compiler:2.6.1")
     
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -99,12 +98,14 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     
     // Firebase BOM - ensures compatible versions
-    implementation(platform("com.google.firebase:firebase-bom:31.5.0"))
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     
     // Firebase dependencies - no version numbers needed with BOM
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
+    implementation("com.google.firebase:firebase-functions-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
     
     // Testing
     testImplementation("junit:junit:4.13.2")

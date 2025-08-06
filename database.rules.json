@@ -4,45 +4,47 @@
       ".indexOn": ["firebaseUid", "email", "username", "role"],
       ".read": "auth != null",
       "$userId": {
-        ".read": "auth != null && (auth.uid == data.child('firebaseUid').val() || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val() != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE'))",
-        ".write": "auth != null && (auth.uid == data.child('firebaseUid').val() || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val() != null && root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN')"
+        ".read": "auth != null && (auth.uid == data.child('firebaseUid').val() || auth.token.admin == true || auth.token.employee == true)",
+        ".write": "auth != null && (auth.uid == data.child('firebaseUid').val() || auth.token.admin == true)",
+        ".validate": "newData.hasChildren(['firebaseUid', 'username', 'role']) && newData.child('role').val().matches(/^(ADMIN|EMPLOYEE|CUSTOMER)$/)"
       }
     },
     "products": {
-      ".indexOn": ["name", "category", "price", "quantity"],
+      ".indexOn": ["name", "price", "quantity", "shelfLocation"],
       ".read": "auth != null",
-      ".write": "auth != null && root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val() != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+      ".write": "auth != null && (auth.token.admin == true || auth.token.employee == true)",
       "$productId": {
-        ".validate": "newData.hasChildren(['name', 'price', 'quantity', 'cost', 'shelfLocation'])"
+        ".validate": "newData.hasChildren(['name', 'price', 'quantity', 'cost']) && newData.child('price').isString() && newData.child('cost').isString() && newData.child('quantity').isNumber()"
       }
     },
     "cart_items": {
-      ".indexOn": ["userId", "productId", "timestamp"],
+      ".indexOn": ["firebaseUid", "productId", "timestamp"],
       ".read": "auth != null",
       "$cartItemId": {
-        ".read": "auth != null && (data.child('userId').val() == root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().id || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
-        ".write": "auth != null && (data.child('userId').val() == root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().id || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN')"
+        ".read": "auth != null && (auth.uid == data.child('firebaseUid').val() || auth.token.admin == true || auth.token.employee == true)",
+        ".write": "auth != null && (auth.uid == data.child('firebaseUid').val() || auth.token.admin == true)",
+        ".validate": "newData.hasChildren(['firebaseUid', 'productId', 'quantity']) && newData.child('quantity').isNumber() && newData.child('quantity').val() > 0"
       }
     },
     "sales": {
-      ".indexOn": ["userId", "employeeId", "timestamp", "status"],
-      ".read": "auth != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
-      ".write": "auth != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+      ".indexOn": ["customerId", "employeeId", "timestamp", "status"],
+      ".read": "auth != null && (auth.token.admin == true || auth.token.employee == true)",
+      ".write": "auth != null && (auth.token.admin == true || auth.token.employee == true)",
       "$saleId": {
-        ".validate": "newData.hasChildren(['userId', 'employeeId', 'items', 'totalAmount', 'timestamp', 'status'])"
+        ".validate": "newData.hasChildren(['customerId', 'employeeId', 'items', 'totalAmount', 'timestamp', 'status']) && newData.child('totalAmount').isString() && newData.child('timestamp').isNumber()"
       }
     },
     "returns": {
-      ".indexOn": ["saleId", "userId", "timestamp", "status"],
-      ".read": "auth != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
-      ".write": "auth != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+      ".indexOn": ["saleId", "customerId", "timestamp", "status"],
+      ".read": "auth != null && (auth.token.admin == true || auth.token.employee == true)",
+      ".write": "auth != null && (auth.token.admin == true || auth.token.employee == true)",
       "$returnId": {
-        ".validate": "newData.hasChildren(['saleId', 'userId', 'reason', 'timestamp', 'status'])"
+        ".validate": "newData.hasChildren(['saleId', 'customerId', 'reason', 'timestamp', 'status']) && newData.child('timestamp').isNumber()"
       }
     },
     "analytics": {
-      ".read": "auth != null && root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN'",
-      ".write": "auth != null && root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN'"
+      ".read": "auth != null && auth.token.admin == true",
+      ".write": "auth != null && auth.token.admin == true"
     }
   }
 }
