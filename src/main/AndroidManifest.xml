@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
+        android:name=".FirebaseLazApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -13,8 +14,29 @@
         android:theme="@style/Theme.LazStore"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+            android:name=".RoleDiagnosticActivity"
             android:exported="true"
+            android:label="Role Diagnostic"
+            android:theme="@style/Theme.LazStore" />
+        <activity
+            android:name=".CreateDefaultUsersActivity"
+            android:exported="true"
+            android:label="Create Default Users"
+            android:theme="@style/Theme.LazStore" />
+        <activity
+            android:name=".FirebaseAuthTestActivity"
+            android:exported="true"
+            android:label="Firebase Auth Test"
+            android:theme="@style/Theme.LazStore" />
+        <activity
+            android:name=".FirebaseTestActivity"
+            android:exported="true"
+            android:label="Firebase Test"
+            android:theme="@style/Theme.LazStore" />
+        <activity
+            android:name=".FirebaseMainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
             android:theme="@style/Theme.LazStore">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

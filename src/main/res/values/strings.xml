@@ -1,3 +1,18 @@
 <resources>
     <string name="app_name">LAZ Store</string>
+    
+    <!-- Product Card Strings -->
+    <string name="out_of_stock">Out of Stock</string>
+    <string name="low_stock">Low Stock</string>
+    <string name="in_stock">In Stock</string>
+    <string name="shelf_location">Shelf: %1$s</string>
+    <string name="price_label">Price</string>
+    <string name="price_format">JOD %.2f</string>
+    <string name="stock_label">In Stock</string>
+    <string name="stock_item_singular">%d item</string>
+    <string name="stock_item_plural">%d items</string>
+    <string name="edit_product">Edit Product</string>
+    <string name="update_inventory">Update Inventory</string>
+    <string name="edit">Edit</string>
+    <string name="stock">Stock</string>
 </resources>

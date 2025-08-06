@@ -24,7 +24,20 @@ data class User(
     val password: String,
     
     @ColumnInfo(name = "role")
-    val role: UserRole
+    val role: UserRole,
+    
+    // Customer-specific fields (nullable for admin/employee users)
+    @ColumnInfo(name = "email")
+    val email: String? = null,
+    
+    @ColumnInfo(name = "phone_number")
+    val phoneNumber: String? = null,
+    
+    @ColumnInfo(name = "address")
+    val address: String? = null,
+    
+    @ColumnInfo(name = "created_at")
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 enum class UserRole {

@@ -1,12 +1,12 @@
 package com.laz
 
 import android.app.Application
-import com.laz.database.LazDatabase
+// LazDatabase removed - using pure Firebase architecture
 
 class LazStoreApplication : Application() {
     
     val database by lazy {
-        LazDatabase.getDatabase(this)
+        // Database removed - using pure Firebase architecture
     }
     
     override fun onCreate() {

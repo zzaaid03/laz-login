@@ -1,0 +1,48 @@
+{
+  "rules": {
+    "users": {
+      ".indexOn": ["firebaseUid", "email", "username", "role"],
+      ".read": "auth != null",
+      "$userId": {
+        ".read": "auth != null && (auth.uid == data.child('firebaseUid').val() || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val() != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE'))",
+        ".write": "auth != null && (auth.uid == data.child('firebaseUid').val() || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val() != null && root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN')"
+      }
+    },
+    "products": {
+      ".indexOn": ["name", "category", "price", "quantity"],
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val() != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+      "$productId": {
+        ".validate": "newData.hasChildren(['name', 'price', 'quantity', 'cost', 'shelfLocation'])"
+      }
+    },
+    "cart_items": {
+      ".indexOn": ["userId", "productId", "timestamp"],
+      ".read": "auth != null",
+      "$cartItemId": {
+        ".read": "auth != null && (data.child('userId').val() == root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().id || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+        ".write": "auth != null && (data.child('userId').val() == root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().id || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN')"
+      }
+    },
+    "sales": {
+      ".indexOn": ["userId", "employeeId", "timestamp", "status"],
+      ".read": "auth != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+      ".write": "auth != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+      "$saleId": {
+        ".validate": "newData.hasChildren(['userId', 'employeeId', 'items', 'totalAmount', 'timestamp', 'status'])"
+      }
+    },
+    "returns": {
+      ".indexOn": ["saleId", "userId", "timestamp", "status"],
+      ".read": "auth != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+      ".write": "auth != null && (root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN' || root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'EMPLOYEE')",
+      "$returnId": {
+        ".validate": "newData.hasChildren(['saleId', 'userId', 'reason', 'timestamp', 'status'])"
+      }
+    },
+    "analytics": {
+      ".read": "auth != null && root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN'",
+      ".write": "auth != null && root.child('users').orderByChild('firebaseUid').equalTo(auth.uid).once('value').val().role == 'ADMIN'"
+    }
+  }
+}

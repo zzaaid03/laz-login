@@ -15,10 +15,10 @@ object ApiClient {
         chain.proceed(request)
     }.build()
 
-    val retrofit: ChatApi = Retrofit.Builder()
+    /*val retrofit: ChatApi = Retrofit.Builder()
         .baseUrl(BASE_URL)
         .addConverterFactory(GsonConverterFactory.create())
         .client(client)
         .build()
-        .create(ChatApi::class.java)
+        .create(ChatApi::class.java)*/
 }

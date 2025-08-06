@@ -1,8 +1,10 @@
 package com.laz.models
 
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 
 @Entity(
     tableName = "cart_items",
@@ -19,6 +21,10 @@ import androidx.room.PrimaryKey
             childColumns = ["productId"],
             onDelete = ForeignKey.CASCADE
         )
+    ],
+    indices = [
+        androidx.room.Index(value = ["userId"]),
+        androidx.room.Index(value = ["productId"])
     ]
 )
 data class CartItem(
@@ -31,6 +37,10 @@ data class CartItem(
 )
 
 data class CartItemWithProduct(
-    val cartItem: CartItem,
+    @Embedded val cartItem: CartItem,
+    @Relation(
+        parentColumn = "productId",
+        entityColumn = "id"
+    )
     val product: Product
 )

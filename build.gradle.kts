@@ -1,8 +1,10 @@
 plugins {
-    id("com.android.application") version "8.2.2"
+    id("com.android.application") version "8.11.1"
     id("org.jetbrains.kotlin.android") version "1.9.22"
     id("com.google.devtools.ksp") version "1.9.22-1.0.17"
     id("org.jetbrains.kotlin.plugin.parcelize") version "1.9.22"
+    // Add the Google services Gradle plugin
+    id("com.google.gms.google-services") version "4.3.13"
 }
 
 android {
@@ -95,6 +97,14 @@ dependencies {
     
     // Security/Crypto for Android
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    
+    // Firebase BOM - ensures compatible versions
+    implementation(platform("com.google.firebase:firebase-bom:31.5.0"))
+    
+    // Firebase dependencies - no version numbers needed with BOM
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-database-ktx")
     
     // Testing
     testImplementation("junit:junit:4.13.2")
