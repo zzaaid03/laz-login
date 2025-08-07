@@ -42,31 +42,6 @@ fun FirebaseLazStoreApp(
         }
     }
 
-    // Handle authentication state changes and navigation
-    LaunchedEffect(authState.isLoggedIn, authState.userRole) {
-        if (authState.isLoggedIn && authState.user != null) {
-            val destination = when (authState.userRole) {
-                UserRole.ADMIN -> {
-                    android.util.Log.d("Navigation", "Navigating ADMIN user to Admin Dashboard")
-                    Screen.AdminDashboard.route
-                }
-                UserRole.EMPLOYEE -> {
-                    android.util.Log.d("Navigation", "Navigating EMPLOYEE user to Employee Dashboard")
-                    Screen.EmployeeDashboard.route
-                }
-                UserRole.CUSTOMER -> {
-                    android.util.Log.d("Navigation", "Navigating CUSTOMER user to Customer Dashboard")
-                    Screen.CustomerDashboard.route
-                }
-            }
-            android.util.Log.d("Navigation", "User role: ${authState.userRole}, navigating to: $destination")
-            navController.navigate(destination) {
-                popUpTo(Screen.Login.route) { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-    }
-
     if (isLoading) {
         // Show loading screen while checking authentication
         Box(
@@ -79,10 +54,11 @@ fun FirebaseLazStoreApp(
             ) {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Initializing LAZ Store...")
+                Text("Loading...")
             }
         }
     } else {
+        // Main navigation - simple approach
         NavHost(
             navController = navController,
             startDestination = if (authState.isLoggedIn) {
@@ -127,44 +103,88 @@ fun FirebaseLazStoreApp(
 
             // Admin Dashboard
             composable(Screen.AdminDashboard.route) {
-                authState.user?.let { user ->
-                    // For now, show a simple admin dashboard placeholder
-                    AdminDashboardPlaceholder(
-                        user = user,
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    AdminDashboardScreen(
+                        user = currentUser,
                         onNavigateBack = { navController.popBackStack() },
-                        onLogout = {
+                        onLogout = { 
                             firebaseAuthViewModel.signOut()
                             navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        }
-                    )
-                }
-            }
-
-            // Employee Dashboard
-            composable(Screen.EmployeeDashboard.route) {
-                authState.user?.let { user ->
-                    val productViewModel: SecureFirebaseProductViewModel = viewModel(
-                        factory = FirebaseServices.secureViewModelFactory
-                    )
-                    
-                    EmployeeDashboardPlaceholder(
-                        user = user,
-                        onNavigateBack = { navController.popBackStack() },
-                        onLogout = {
-                            firebaseAuthViewModel.signOut()
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true }
+                                popUpTo(0) { inclusive = true } 
                             }
                         },
-                        onNavigateToProductManagement = {
-                            navController.navigate(Screen.ProductManagement.route)
-                        }
+                        onNavigateToUserManagement = { navController.navigate(Screen.UserManagement.route) },
+                        onNavigateToProductManagement = { navController.navigate(Screen.ProductManagement.route) },
+                        onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) },
+                        onNavigateToReturnsProcessing = { navController.navigate(Screen.ReturnsProcessing.route) },
+                        onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) }
                     )
+                } else {
+                    // User is null, navigate to login
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 }
             }
             
+            // Employee Dashboard
+            composable(Screen.EmployeeDashboard.route) {
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    EmployeeDashboardScreen(
+                        user = currentUser,
+                        onNavigateBack = { navController.popBackStack() },
+                        onLogout = { 
+                            firebaseAuthViewModel.signOut()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true } 
+                            }
+                        },
+                        onNavigateToProductManagement = { navController.navigate(Screen.ProductManagement.route) },
+                        onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) }
+                    )
+                } else {
+                    // User is null, navigate to login
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
+            
+            // Customer Dashboard
+            composable(Screen.CustomerDashboard.route) {
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    CustomerDashboardScreen(
+                        user = currentUser,
+                        onNavigateBack = { navController.popBackStack() },
+                        onLogout = { 
+                            firebaseAuthViewModel.signOut()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true } 
+                            }
+                        },
+                        onNavigateToShopping = { navController.navigate(Screen.ProductScreen.route) },
+                        onNavigateToCart = { navController.navigate(Screen.EnhancedCart.route) },
+                        onNavigateToProfile = { navController.navigate(Screen.ProfileScreen.route) },
+                        onNavigateToOrderHistory = { navController.navigate(Screen.OrderHistory.route) },
+                        onNavigateToChat = { navController.navigate(Screen.Chat.route) }
+                    )
+                } else {
+                    // User is null, navigate to login
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
+
             // Product Management Screen
             composable(Screen.ProductManagement.route) {
                 val productViewModel: SecureFirebaseProductViewModel = viewModel(
@@ -177,28 +197,56 @@ fun FirebaseLazStoreApp(
                 )
             }
 
-            // Customer Dashboard
-            composable(Screen.CustomerDashboard.route) {
-                authState.user?.let { user ->
-                    // For now, show a simple customer dashboard placeholder
-                    CustomerDashboardPlaceholder(
-                        user = user,
-                        onNavigateBack = { navController.popBackStack() },
-                        onLogout = {
-                            firebaseAuthViewModel.signOut()
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        }
-                    )
-                }
-            }
-
             // Profile Screen - Simple profile management
             composable(Screen.ProfileScreen.route) {
                 FirebaseProfileScreen(
                     authViewModel = firebaseAuthViewModel,
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            
+            // Sales Overview Screen - Analytics dashboard
+            composable(Screen.SalesOverview.route) {
+                FirebaseSalesOverviewScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            
+            // Sales Processing Screen - Point of Sale
+            composable(Screen.SalesProcessing.route) {
+                EmployeeProductManagementScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+            
+            composable(Screen.UserManagement.route) {
+                FirebaseUserManagementScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            
+            composable(Screen.OrderHistory.route) {
+                FirebaseOrderHistoryScreen(
+                    currentUser = authState.user!!,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            
+            composable(Screen.EnhancedCart.route) {
+                FirebaseEnhancedCartScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            
+            composable(Screen.ReturnsProcessing.route) {
+                FirebaseReturnsProcessingScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            
+            composable(Screen.Chat.route) {
+                FirebaseChatScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
@@ -217,164 +265,12 @@ sealed class Screen(val route: String) {
     object ProductManagement : Screen("product_management")
     object ProductScreen : Screen("product_screen")
     object CartScreen : Screen("cart_screen")
+    object EnhancedCart : Screen("enhanced_cart")
     object ProfileScreen : Screen("profile_screen")
     object SalesProcessing : Screen("sales_processing")
     object ReturnsProcessing : Screen("returns_processing")
     object SalesOverview : Screen("sales_overview")
     object UserManagement : Screen("user_management")
-}
-
-/**
- * Simple placeholder screens for role-based dashboards
- */
-@Composable
-fun AdminDashboardPlaceholder(
-    user: com.laz.models.User,
-    onNavigateBack: () -> Unit,
-    onLogout: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Admin Dashboard",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Welcome, ${user.username}!",
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Text(
-            text = "Role: ${user.role}",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = "Admin features:",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text("• User Management")
-        Text("• Full System Access")
-        Text("• Analytics & Reports")
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onLogout) {
-            Text("Logout")
-        }
-    }
-}
-
-@Composable
-fun EmployeeDashboardPlaceholder(
-    user: com.laz.models.User,
-    onNavigateBack: () -> Unit,
-    onLogout: () -> Unit,
-    onNavigateToProductManagement: () -> Unit = {}
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Employee Dashboard",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Welcome, ${user.username}!",
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Text(
-            text = "Role: ${user.role}",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        // Product Management Button
-        Button(
-            onClick = onNavigateToProductManagement,
-            modifier = Modifier.fillMaxWidth(0.8f)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Inventory,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Manage Products")
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Other actions can be added here
-        Text(
-            text = "Quick Actions:",
-            style = MaterialTheme.typography.titleMedium
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Logout Button
-        Button(
-            onClick = onLogout,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
-            ),
-            modifier = Modifier.fillMaxWidth(0.6f)
-        ) {
-            Text("Logout")
-        }
-    }
-}
-
-@Composable
-fun CustomerDashboardPlaceholder(
-    user: com.laz.models.User,
-    onNavigateBack: () -> Unit,
-    onLogout: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Customer Dashboard",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Welcome, ${user.username}!",
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Text(
-            text = "Role: ${user.role}",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = "Customer features:",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text("• Browse Products")
-        Text("• Shopping Cart")
-        Text("• Profile Management")
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onLogout) {
-            Text("Logout")
-        }
-    }
+    object OrderHistory : Screen("order_history")
+    object Chat : Screen("chat")
 }
