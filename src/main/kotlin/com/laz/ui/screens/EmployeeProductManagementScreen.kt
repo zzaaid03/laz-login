@@ -215,355 +215,6 @@ private fun ProductItem(
     }
 }
 
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
-@Composable
-fun InventoryUpdateDialog(
-    product: Product,
-    onDismiss: () -> Unit,
-    onUpdateInventory: (String, Int) -> Unit
-) {
-    var quantity by rememberSaveable { mutableStateOf(product.quantity.toString()) }
-    var showError by rememberSaveable { mutableStateOf(false) }
-    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
-
-    // Validate quantity input
-    val quantityValue = quantity.toIntOrNull() ?: 0
-    val isQuantityValid = quantity.isNotBlank() && quantityValue >= 0
-
-    // Update quantity when product changes
-    LaunchedEffect(product) {
-        quantity = product.quantity.toString()
-    }
-
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        androidx.compose.material3.Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .padding(16.dp),
-            shape = MaterialTheme.shapes.large,
-            tonalElevation = 8.dp
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp)
-            ) {
-                // Title with icon
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Inventory,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Update Inventory",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Current stock info
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Product: ${product.name}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Current stock:",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "${product.quantity}",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = if (product.quantity < LOW_STOCK_THRESHOLD) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Quantity input
-                OutlinedTextField(
-                    value = quantity,
-                    onValueChange = { newValue ->
-                        // Only allow numeric input
-                        if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
-                            quantity = newValue
-                            showError = false
-                            errorMessage = null
-                        }
-                    },
-                    label = { Text("New Quantity") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = showError,
-                    modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Numbers,
-                            contentDescription = "Quantity",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    supportingText = {
-                        if (showError && errorMessage != null) {
-                            Text(errorMessage ?: "Invalid quantity")
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    ) {
-                        Text("Cancel")
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Button(
-                        onClick = {
-                            when {
-                                quantity.isBlank() -> {
-                                    showError = true
-                                    errorMessage = "Quantity cannot be empty"
-                                }
-
-                                quantityValue < 0 -> {
-                                    showError = true
-                                    errorMessage = "Quantity cannot be negative"
-                                }
-
-                                else -> {
-                                    onUpdateInventory(product.id.toString(), quantityValue)
-                                    onDismiss()
-                                }
-                            }
-                        },
-                        enabled = isQuantityValid,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                        )
-                    ) {
-                        Text("Update Inventory")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
-@Composable
-fun ProductFormDialog(
-    product: Product? = null,
-    onDismiss: () -> Unit,
-    onSave: (Product) -> Unit,
-    isEditing: Boolean = false
-) {
-    var name by remember { mutableStateOf(product?.name ?: "") }
-    var price by remember { mutableStateOf(product?.price?.toString() ?: "") }
-    var cost by remember { mutableStateOf(product?.cost?.toString() ?: "") }
-    var quantity by remember { mutableStateOf(product?.quantity?.toString() ?: "") }
-    var shelfLocation by remember { mutableStateOf(product?.shelfLocation ?: "") }
-    
-    var showError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
-    
-    // Form validation
-    val isFormValid = name.isNotBlank() && 
-                     price.toDoubleOrNull() != null && 
-                     cost.toDoubleOrNull() != null &&
-                     quantity.toIntOrNull() != null &&
-                     shelfLocation.isNotBlank()
-    
-    // Update form when product changes
-    LaunchedEffect(product) {
-        name = product?.name ?: ""
-        price = product?.price?.toString() ?: ""
-        cost = product?.cost?.toString() ?: ""
-        quantity = product?.quantity?.toString() ?: ""
-        shelfLocation = product?.shelfLocation ?: ""
-    }
-    
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        androidx.compose.material3.Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .padding(16.dp),
-            shape = MaterialTheme.shapes.large,
-            tonalElevation = 8.dp
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp)
-            ) {
-                // Title with icon
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Inventory,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = if (isEditing) "Edit Product" else "Add Product",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Form fields
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                OutlinedTextField(
-                    value = price,
-                    onValueChange = { price = it },
-                    label = { Text("Price") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                OutlinedTextField(
-                    value = cost,
-                    onValueChange = { cost = it },
-                    label = { Text("Cost") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                OutlinedTextField(
-                    value = quantity,
-                    onValueChange = { quantity = it },
-                    label = { Text("Quantity") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                OutlinedTextField(
-                    value = shelfLocation,
-                    onValueChange = { shelfLocation = it },
-                    label = { Text("Shelf Location") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    ) {
-                        Text("Cancel")
-                    }
-                    
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    Button(
-                        onClick = {
-                            if (isFormValid) {
-                                onSave(
-                                    Product(
-                                        id = product?.id ?: 0L,
-                                        name = name,
-                                        price = BigDecimal(price),
-                                        cost = BigDecimal(cost),
-                                        quantity = quantity.toInt(),
-                                        shelfLocation = shelfLocation
-                                    )
-                                )
-                                onDismiss()
-                            } else {
-                                showError = true
-                                errorMessage = "Please fill out all fields"
-                            }
-                        },
-                        enabled = isFormValid,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                        )
-                    ) {
-                        Text(if (isEditing) "Save Changes" else "Add Product")
-                    }
-                }
-            }
-        }
-    }
-}
-
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -573,7 +224,7 @@ fun EmployeeProductManagementScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    
+
     // UI State
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
@@ -581,24 +232,25 @@ fun EmployeeProductManagementScreen(
     var showEditDialog by rememberSaveable { mutableStateOf(false) }
     var showInventoryDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteConfirmation by rememberSaveable { mutableStateOf(false) }
-    var selectedProduct by remember { 
-        mutableStateOf<com.laz.models.Product?>(null) 
+    var selectedProduct by remember {
+        mutableStateOf<com.laz.models.Product?>(null)
     }
     var error by remember { mutableStateOf<String?>(null) }
-    
+
     // Coroutine scope for launching effects
     val scope = rememberCoroutineScope()
-    
+
     // Get the current spacing values
     val spacing = LocalSpacing.current
-    
+
     // Collect products from ViewModel with proper error handling
-    val products by productViewModel.products.collectAsState()
-    val isLoading by productViewModel.isLoading.collectAsState()
-    val errorMessage by productViewModel.errorMessage.collectAsState()
-    
-    val lowStockProducts = products.filter { it.quantity <= LOW_STOCK_THRESHOLD }
-    
+    val productState by productViewModel.productState.collectAsState(initial = ProductUiState())
+
+    val products = productState.products
+    val lowStockProducts = productState.lowStockProducts
+    val isLoading = productState.isLoading
+    val errorState = productState.error
+
     // Load products when the screen is first displayed
     LaunchedEffect(Unit) {
         productViewModel.loadProducts()
@@ -607,25 +259,25 @@ fun EmployeeProductManagementScreen(
     // Filter products based on search query and tab selection
     val filteredProducts = remember(products, searchQuery, selectedTabIndex) {
         products.filter { product ->
-            val matchesSearch = searchQuery.isEmpty() || 
-                product.name.contains(searchQuery, ignoreCase = true) ||
-                product.shelfLocation?.contains(searchQuery, ignoreCase = true) == true
-                    
+            val matchesSearch = searchQuery.isEmpty() ||
+                    product.name.contains(searchQuery, ignoreCase = true) ||
+                    product.shelfLocation.contains(searchQuery, ignoreCase = true)
+
             val matchesTab = when (selectedTabIndex) {
                 1 -> product.quantity > 0 && product.quantity <= LOW_STOCK_THRESHOLD
                 2 -> product.quantity <= 0
                 else -> true // All products
             }
-            
+
             matchesSearch && matchesTab
         }.sortedBy { it.name }
     }
-    
+
     // Handle error state
-    LaunchedEffect(errorMessage) {
-        error = errorMessage
+    LaunchedEffect(errorState) {
+        error = errorState
     }
-    
+
     // Clear error when search query changes
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotEmpty()) {
@@ -643,10 +295,10 @@ fun EmployeeProductManagementScreen(
         }
         return@EmployeeProductManagementScreen
     }
-    
+
     // Tabs for product filtering
     val tabs = listOf("All Products", "Low Stock", "Out of Stock")
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -662,10 +314,10 @@ fun EmployeeProductManagementScreen(
                 actions = {
                     // Search bar
                     var searchQueryState by remember { mutableStateOf("") }
-                    
+
                     OutlinedTextField(
                         value = searchQueryState,
-                        onValueChange = { 
+                        onValueChange = {
                             searchQueryState = it
                             searchQuery = it
                         },
@@ -723,9 +375,9 @@ fun EmployeeProductManagementScreen(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Products List with Loading and Empty States
             AnimatedVisibility(
                 visible = isLoading,
@@ -739,7 +391,7 @@ fun EmployeeProductManagementScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                        horizontalAlignment = Alignment.Center,
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         CircularProgressIndicator(
@@ -755,7 +407,7 @@ fun EmployeeProductManagementScreen(
                     }
                 }
             }
-            
+
             // Products Grid
             AnimatedVisibility(
                 visible = !isLoading,
@@ -769,10 +421,10 @@ fun EmployeeProductManagementScreen(
                         else -> products
                     }.filter { product ->
                         product.name.contains(searchQuery, ignoreCase = true) ||
-                        product.shelfLocation?.contains(searchQuery, ignoreCase = true) == true
+                                product.shelfLocation.contains(searchQuery, ignoreCase = true)
                     }
                 }
-                
+
                 if (displayProducts.isEmpty()) {
                     // Empty state
                     Box(
@@ -794,7 +446,7 @@ fun EmployeeProductManagementScreen(
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            
+
                             if (selectedTabIndex != 0) {
                                 Button(
                                     onClick = { selectedTabIndex = 0 }
@@ -805,54 +457,272 @@ fun EmployeeProductManagementScreen(
                         }
                     }
                 } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(displayProducts) { product: Product ->
-                        ProductItem(
-                            product = product,
-                            onEdit = {
-                                selectedProduct = product
-                                showEditDialog = true
-                            },
-                            onDelete = {
-                                selectedProduct = product
-                                showDeleteConfirmation = true
-                            },
-                            onInventoryUpdate = {
-                                selectedProduct = product
-                                showInventoryDialog = true
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(displayProducts) { product: Product ->
+                            ProductItem(
+                                product = product,
+                                onEdit = {
+                                    selectedProduct = product
+                                    showEditDialog = true
+                                },
+                                onDelete = {
+                                    selectedProduct = product
+                                    showDeleteConfirmation = true
+                                },
+                                onInventoryUpdate = {
+                                    selectedProduct = product
+                                    showInventoryDialog = true
+                                }
+                            )
+                        }
+
+                        // Add some bottom padding
+                        item {
+                            Spacer(modifier = Modifier.height(80.dp))
+                        }
+
+                        // Show empty state if no products found
+                        if (filteredProducts.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (searchQuery.isEmpty()) {
+                                            "No products found"
+                                        } else {
+                                            "No products match your search"
+                                        },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Show add product dialog
+        if (showAddDialog) {
+            ProductFormDialog(
+                onDismiss = { showAddDialog = false },
+                onSave = { product ->
+                    scope.launch {
+                        productViewModel.createProduct(product)
+                        showAddDialog = false
+                    }
+                },
+                isEditing = false
+            )
+        }
+
+        // Show edit product dialog
+        if (showEditDialog && selectedProduct != null) {
+            ProductFormDialog(
+                product = selectedProduct!!,
+                onDismiss = { showEditDialog = false },
+                onSave = { product ->
+                    scope.launch {
+                        productViewModel.updateProduct(product)
+                        showEditDialog = false
+                    }
+                },
+                isEditing = true
+            )
+        }
+
+        // Show inventory update dialog
+        if (showInventoryDialog && selectedProduct != null) {
+            InventoryUpdateDialog(
+                product = selectedProduct!!,
+                onDismiss = { showInventoryDialog = false },
+                onUpdateInventory = { _: String, quantity: Int ->
+                    scope.launch {
+                        // Create an updated product with the new quantity
+                        val updatedProduct = selectedProduct!!.copy(quantity = quantity)
+                        productViewModel.updateProduct(updatedProduct)
+                        showInventoryDialog = false
+                    }
+                }
+            )
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+    @Composable
+    private fun ProductFormDialog(
+        product: Product = Product.getDefaultInstance(),
+        onDismiss: () -> Unit,
+        onSave: (Product) -> Unit,
+        isEditing: Boolean = false
+    ) {
+        var name by remember { mutableStateOf(product.name) }
+        var price by remember { mutableStateOf(product.price.toString()) }
+        var cost by remember { mutableStateOf(product.cost.toString()) }
+        var quantity by remember { mutableStateOf(product.quantity.toString()) }
+        var shelfLocation by remember { mutableStateOf(product.shelfLocation) }
+
+        var showError by remember { mutableStateOf(false) }
+        var errorMessage by remember { mutableStateOf("") }
+
+        // Form validation
+        val isFormValid = name.isNotBlank() &&
+                price.toDoubleOrNull() != null &&
+                cost.toDoubleOrNull() != null &&
+                quantity.toIntOrNull() != null &&
+                shelfLocation.isNotBlank()
+
+        // Update form when product changes
+        LaunchedEffect(product) {
+            name = product.name
+            price = product.price.toString()
+            cost = product.cost.toString()
+            quantity = product.quantity.toString()
+            shelfLocation = product.shelfLocation
+        }
+
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = onDismiss,
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            androidx.compose.material3.Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(16.dp),
+                shape = MaterialTheme.shapes.large,
+                tonalElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    // Title with icon
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Inventory,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = if (isEditing) "Edit Product" else "Add Product",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    
-                    // Add some bottom padding
-                    item {
-                        Spacer(modifier = Modifier.height(80.dp))
-                    }
-                    
-                    // Show empty state if no products found
-                    if (filteredProducts.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (searchQuery.isEmpty()) {
-                                        "No products found"
-                                    } else {
-                                        "No products match your search"
-                                    },
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Form fields
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = price,
+                        onValueChange = { price = it },
+                        label = { Text("Price") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = cost,
+                        onValueChange = { cost = it },
+                        label = { Text("Cost") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = quantity,
+                        onValueChange = { quantity = it },
+                        label = { Text("Quantity") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = shelfLocation,
+                        onValueChange = { shelfLocation = it },
+                        label = { Text("Shelf Location") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Text("Cancel")
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Button(
+                            onClick = {
+                                if (isFormValid) {
+                                    onSave(
+                                        Product(
+                                            id = product.id,
+                                            name = name,
+                                            price = price.toDouble(),
+                                            cost = cost.toDouble(),
+                                            quantity = quantity.toInt(),
+                                            shelfLocation = shelfLocation
+                                        )
+                                    )
+                                    onDismiss()
+                                } else {
+                                    showError = true
+                                    errorMessage = "Please fill out all fields"
+                                }
+                            },
+                            enabled = isFormValid,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(
+                                    alpha = 0.5f
                                 )
-                            }
+                            )
+                        ) {
+                            Text(if (isEditing) "Save Changes" else "Add Product")
                         }
                     }
                 }
@@ -860,50 +730,183 @@ fun EmployeeProductManagementScreen(
         }
     }
 
-    // Show add product dialog
-    if (showAddDialog) {
-        ProductFormDialog(
-            onDismiss = { showAddDialog = false },
-            onSave = { product: Product ->
-                scope.launch {
-                    productViewModel.addProduct(product)
-                    showAddDialog = false
-                }
-            },
-            isEditing = false
-        )
-    }
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+    @Composable
+    private fun InventoryUpdateDialog(
+        product: Product,
+        onDismiss: () -> Unit,
+        onUpdateInventory: (String, Int) -> Unit
+    ) {
+        var quantity by rememberSaveable { mutableStateOf(product.quantity.toString()) }
+        var showError by rememberSaveable { mutableStateOf(false) }
+        var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Show edit product dialog
-    if (showEditDialog && selectedProduct != null) {
-        ProductFormDialog(
-            product = selectedProduct!!,
-            onDismiss = { showEditDialog = false },
-            onSave = { product ->
-                scope.launch {
-                    productViewModel.updateProduct(product)
-                    showEditDialog = false
-                }
-            },
-            isEditing = true
-        )
-    }
+        // Validate quantity input
+        val quantityValue = quantity.toIntOrNull() ?: 0
+        val isQuantityValid = quantity.isNotBlank() && quantityValue >= 0
 
-    // Show inventory update dialog
-    if (showInventoryDialog && selectedProduct != null) {
-        InventoryUpdateDialog(
-            product = selectedProduct!!,
-            onDismiss = { showInventoryDialog = false },
-            onUpdateInventory = { _: String, quantity: Int ->
-                scope.launch {
-                    // Create an updated product with the new quantity
-                    val updatedProduct = selectedProduct!!.copy(quantity = quantity)
-                    productViewModel.updateProduct(updatedProduct)
-                    showInventoryDialog = false
+        // Update quantity when product changes
+        LaunchedEffect(product) {
+            quantity = product.quantity.toString()
+        }
+
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = onDismiss,
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            androidx.compose.material3.Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(16.dp),
+                shape = MaterialTheme.shapes.large,
+                tonalElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    // Title with icon
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Inventory,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Update Inventory",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Current stock info
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Product: ${product.name}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Current stock:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${product.quantity}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (product.quantity < LOW_STOCK_THRESHOLD) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Quantity input
+                    OutlinedTextField(
+                        value = quantity,
+                        onValueChange = { newValue ->
+                            // Only allow numeric input
+                            if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                                quantity = newValue
+                                showError = false
+                                errorMessage = null
+                            }
+                        },
+                        label = { Text("New Quantity") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = showError,
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Numbers,
+                                contentDescription = "Quantity",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        supportingText = {
+                            if (showError && errorMessage != null) {
+                                Text(errorMessage ?: "Invalid quantity")
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Text("Cancel")
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Button(
+                            onClick = {
+                                when {
+                                    quantity.isBlank() -> {
+                                        showError = true
+                                        errorMessage = "Quantity cannot be empty"
+                                    }
+
+                                    quantityValue < 0 -> {
+                                        showError = true
+                                        errorMessage = "Quantity cannot be negative"
+                                    }
+
+                                    else -> {
+                                        onUpdateInventory(product.id, quantityValue)
+                                        onDismiss()
+                                    }
+                                }
+                            },
+                            enabled = isQuantityValid,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(
+                                    alpha = 0.5f
+                                )
+                            )
+                        ) {
+                            Text("Update Inventory")
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 }
-
-   }
