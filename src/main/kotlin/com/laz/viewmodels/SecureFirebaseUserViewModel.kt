@@ -43,26 +43,49 @@ class SecureFirebaseUserViewModel(
      * Load all users (Admin only)
      */
     fun loadUsers() {
-        val user = currentUser.value
-        if (!PermissionManager.canViewAllUsers(user)) {
-            _permissionError.value = "Access denied: Only administrators can view all users"
-            return
-        }
-
         viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = null
-            _permissionError.value = null
-            
             try {
-                val result = userRepository.getAllUsers()
-                if (result.isSuccess) {
-                    _users.value = result.getOrNull() ?: emptyList()
-                } else {
-                    _errorMessage.value = "Failed to load users: ${result.exceptionOrNull()?.message}"
+                _isLoading.value = true
+                _errorMessage.value = null
+                
+                println("DEBUG: ===== USER PERMISSION CHECK =====")
+                println("DEBUG: Current user: ${currentUser.value}")
+                println("DEBUG: User ID: ${currentUser.value?.id}")
+                println("DEBUG: Username: ${currentUser.value?.username}")
+                println("DEBUG: Email: ${currentUser.value?.email}")
+                println("DEBUG: User role: ${currentUser.value?.role}")
+                println("DEBUG: Is user null? ${currentUser.value == null}")
+                
+                // Check permissions
+                val canView = PermissionManager.canViewAllUsers(currentUser.value)
+                println("DEBUG: Can view all users: $canView")
+                println("DEBUG: ===== END PERMISSION CHECK =====")
+                
+                if (!canView) {
+                    val errorMsg = if (currentUser.value == null) {
+                        "Access denied. No user logged in."
+                    } else {
+                        "Access denied. Admin privileges required. Current role: ${currentUser.value?.role}"
+                    }
+                    _errorMessage.value = errorMsg
+                    _isLoading.value = false
+                    return@launch
+                }
+                
+                userRepository.getAllUsers().onSuccess { users ->
+                    println("DEBUG: Loaded ${users.size} users from Firebase")
+                    users.forEach { user ->
+                        println("DEBUG: User - ID: ${user.id}, Username: ${user.username}, Role: ${user.role}")
+                    }
+                    _users.value = users
+                }.onFailure { e ->
+                    val errorMsg = "Failed to load users: ${e.message}"
+                    println("DEBUG: $errorMsg")
+                    _errorMessage.value = errorMsg
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Error loading users: ${e.message}"
+                _errorMessage.value = "Failed to load users: ${e.message}"
+                println("DEBUG: Error loading users: ${e.message}")
             } finally {
                 _isLoading.value = false
             }
@@ -93,32 +116,27 @@ class SecureFirebaseUserViewModel(
             
             try {
                 // Create Firebase Auth account
-                val authResult = authService.signUp(email, password, username)
-                if (authResult.isSuccess) {
-                    val firebaseUser = authResult.getOrNull()
-                    if (firebaseUser != null) {
-                        // Create user profile in database
-                        val newEmployee = User(
-                            id = System.currentTimeMillis(), // Generate unique ID
-                            username = username,
-                            password = password, // Add missing password parameter
-                            email = email,
-                            phoneNumber = phoneNumber,
-                            address = address,
-                            role = UserRole.EMPLOYEE,
-                            createdAt = System.currentTimeMillis()
-                        )
-                        
-                        val createResult = userRepository.createUser(newEmployee, firebaseUser.uid)
-                        if (createResult.isSuccess) {
-                            _operationSuccess.value = "Employee account created successfully"
-                            loadUsers() // Refresh the list
-                        } else {
-                            _errorMessage.value = "Failed to create employee profile: ${createResult.exceptionOrNull()?.message}"
-                        }
+                authService.signUp(email, password, username).onSuccess { firebaseUser ->
+                    // Create user profile in database
+                    val newEmployee = User(
+                        id = System.currentTimeMillis(), // Generate unique ID
+                        username = username,
+                        password = password, // Add missing password parameter
+                        email = email,
+                        phoneNumber = phoneNumber,
+                        address = address,
+                        role = UserRole.EMPLOYEE,
+                        createdAt = System.currentTimeMillis()
+                    )
+                    
+                    userRepository.createUser(newEmployee, firebaseUser.uid).onSuccess {
+                        _operationSuccess.value = "Employee account created successfully"
+                        loadUsers() // Refresh the list
+                    }.onFailure { e ->
+                        _errorMessage.value = "Failed to create employee profile: ${e.message}"
                     }
-                } else {
-                    _errorMessage.value = "Failed to create employee account: ${authResult.exceptionOrNull()?.message}"
+                }.onFailure { e ->
+                    _errorMessage.value = "Failed to create employee account: ${e.message}"
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error creating employee: ${e.message}"
@@ -148,12 +166,11 @@ class SecureFirebaseUserViewModel(
                 val targetUser = _users.value.find { it.id == userId }
                 if (targetUser != null) {
                     val updatedUser = targetUser.copy(role = newRole)
-                    val result = userRepository.updateUser(updatedUser)
-                    if (result.isSuccess) {
+                    userRepository.updateUser(updatedUser).onSuccess {
                         _operationSuccess.value = "User role updated successfully"
                         loadUsers() // Refresh the list
-                    } else {
-                        _errorMessage.value = "Failed to update user role: ${result.exceptionOrNull()?.message}"
+                    }.onFailure { e ->
+                        _errorMessage.value = "Failed to update user role: ${e.message}"
                     }
                 } else {
                     _errorMessage.value = "User not found"
@@ -189,12 +206,11 @@ class SecureFirebaseUserViewModel(
             _operationSuccess.value = null
             
             try {
-                val result = userRepository.deleteUser(userId)
-                if (result.isSuccess) {
+                userRepository.deleteUser(userId).onSuccess {
                     _operationSuccess.value = "User account deleted successfully"
                     loadUsers() // Refresh the list
-                } else {
-                    _errorMessage.value = "Failed to delete user: ${result.exceptionOrNull()?.message}"
+                }.onFailure { e ->
+                    _errorMessage.value = "Failed to delete user: ${e.message}"
                 }
             } catch (e: Exception) {
                 _errorMessage.value = "Error deleting user: ${e.message}"

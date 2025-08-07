@@ -45,21 +45,32 @@ class FirebaseAuthViewModel(
             _isLoading.value = true
             try {
                 val currentFirebaseUser = firebaseAuthService.currentUser
+                android.util.Log.d("FirebaseAuth", "Checking current user: ${currentFirebaseUser?.email}")
+                
                 if (currentFirebaseUser != null) {
+                    android.util.Log.d("FirebaseAuth", "Found Firebase user: ${currentFirebaseUser.email}")
                     // Get user data from Firebase Database
                     val userResult = firebaseUserRepository.getUserByFirebaseUid(currentFirebaseUser.uid)
                     if (userResult.isSuccess) {
                         val user = userResult.getOrNull()
                         if (user != null) {
+                            android.util.Log.d("FirebaseAuth", "Auto-logging in user: ${user.username} (${user.role})")
                             _authState.value = AuthState(
                                 isLoggedIn = true,
                                 user = user,
                                 userRole = user.role
                             )
+                        } else {
+                            android.util.Log.d("FirebaseAuth", "Firebase user found but no database record")
                         }
+                    } else {
+                        android.util.Log.w("FirebaseAuth", "Failed to get user data: ${userResult.exceptionOrNull()?.message}")
                     }
+                } else {
+                    android.util.Log.d("FirebaseAuth", "No current Firebase user found")
                 }
             } catch (e: Exception) {
+                android.util.Log.e("FirebaseAuth", "Error checking authentication: ${e.message}")
                 _errorMessage.value = "Error checking authentication: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -186,9 +197,21 @@ class FirebaseAuthViewModel(
     fun signOut() {
         viewModelScope.launch {
             try {
-                firebaseAuthService.signOut()
+                android.util.Log.d("FirebaseAuth", "Starting logout process")
+                
+                // Clear auth state first
                 _authState.value = AuthState()
+                android.util.Log.d("FirebaseAuth", "Auth state cleared")
+                
+                // Then sign out from Firebase
+                firebaseAuthService.signOut()
+                android.util.Log.d("FirebaseAuth", "Firebase signOut completed")
+                
+                // Clear any error messages
+                _errorMessage.value = null
+                
             } catch (e: Exception) {
+                android.util.Log.e("FirebaseAuth", "Sign out error: ${e.message}")
                 _errorMessage.value = "Sign out error: ${e.message}"
             }
         }
@@ -285,6 +308,21 @@ class FirebaseAuthViewModel(
                 _errorMessage.value = "Account deletion error: ${e.message}"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Clear persistent Firebase session (for debugging)
+     */
+    fun clearSession() {
+        viewModelScope.launch {
+            try {
+                firebaseAuthService.signOut()
+                _authState.value = AuthState()
+                android.util.Log.d("FirebaseAuth", "Session cleared")
+            } catch (e: Exception) {
+                android.util.Log.e("FirebaseAuth", "Error clearing session: ${e.message}")
             }
         }
     }

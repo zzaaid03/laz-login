@@ -7,6 +7,12 @@ import com.laz.repositories.FirebaseProductRepository
 import com.laz.repositories.FirebaseUserRepository
 import com.laz.services.FirebaseAuthService
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.laz.models.User
 
 /**
@@ -66,7 +72,7 @@ class SecureFirebaseViewModelFactory(
 }
 
 /**
- * Firebase Services Container
+ * Singleton object that provides Firebase services and ViewModels
  * Holds all Firebase service instances for dependency injection
  */
 object FirebaseServices {
@@ -75,22 +81,69 @@ object FirebaseServices {
     val productRepository: FirebaseProductRepository by lazy { FirebaseProductRepository() }
     val cartRepository: FirebaseCartRepository by lazy { FirebaseCartRepository() }
     
-    // For now, keep the old ViewModelFactory for compatibility
-    // TODO: Migrate to secure ViewModels with proper currentUser StateFlow
+    // Current user StateFlow that combines Firebase auth with User model data
+    private val _currentUser = MutableStateFlow<User?>(null)
+    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+    
+    // Initialize current user state from Firebase auth
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    init {
+        scope.launch {
+            authService.authStateFlow.collect { firebaseUser ->
+                println("DEBUG: ===== FIREBASE SERVICES USER UPDATE =====")
+                println("DEBUG: Firebase user changed: ${firebaseUser?.email}")
+                
+                if (firebaseUser != null) {
+                    println("DEBUG: Firebase user found: ${firebaseUser.email}")
+                    // Look up the User model from Firebase database using email
+                    try {
+                        val result = userRepository.getAllUsers()
+                        if (result.isSuccess) {
+                            val users = result.getOrNull() ?: emptyList()
+                            println("DEBUG: Found ${users.size} users in database")
+                            val user = users.find { it.email == firebaseUser.email }
+                            if (user != null) {
+                                println("DEBUG: Found matching user: ${user.username} (${user.role})")
+                                _currentUser.value = user
+                                println("DEBUG: Current user updated successfully")
+                            } else {
+                                println("DEBUG: No matching user found for email: ${firebaseUser.email}")
+                                println("DEBUG: Available users:")
+                                users.forEach { u ->
+                                    println("DEBUG:   - ${u.email} (${u.username}, ${u.role})")
+                                }
+                                _currentUser.value = null
+                            }
+                        } else {
+                            println("DEBUG: Error loading user data: ${result.exceptionOrNull()?.message}")
+                            _currentUser.value = null
+                        }
+                    } catch (e: Exception) {
+                        println("DEBUG: Exception loading user data: ${e.message}")
+                        _currentUser.value = null
+                    }
+                } else {
+                    println("DEBUG: No Firebase user, setting current user to null")
+                    _currentUser.value = null
+                }
+                println("DEBUG: Final current user value: ${_currentUser.value}")
+                println("DEBUG: ===== END FIREBASE SERVICES UPDATE =====")
+            }
+        }
+    }
+    
     val viewModelFactory: SecureFirebaseViewModelFactory by lazy {
-        // We'll create a simple StateFlow for currentUser
-        val currentUserFlow = kotlinx.coroutines.flow.MutableStateFlow<com.laz.models.User?>(null)
         SecureFirebaseViewModelFactory(
             firebaseAuthService = authService,
             firebaseUserRepository = userRepository,
             firebaseProductRepository = productRepository,
             firebaseCartRepository = cartRepository,
-            currentUser = currentUserFlow
+            currentUser = currentUser
         )
     }
     
     // Secure ViewModelFactory with role-based access control
     val secureViewModelFactory: SecureFirebaseViewModelFactory by lazy {
-        viewModelFactory // Use the same instance for now
+        viewModelFactory // Use the same instance
     }
 }

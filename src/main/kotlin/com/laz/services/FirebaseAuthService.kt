@@ -7,6 +7,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.channels.awaitClose
+import android.util.Log
 
 /**
  * Firebase Authentication Service
@@ -14,6 +15,16 @@ import kotlinx.coroutines.channels.awaitClose
  */
 class FirebaseAuthService {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    
+    init {
+        // Disable persistence to prevent auto-login
+        try {
+            auth.signOut() // Clear any existing session on service creation
+            Log.d("FirebaseAuth", "Auth service initialized, existing session cleared")
+        } catch (e: Exception) {
+            Log.w("FirebaseAuth", "Error clearing session on init: ${e.message}")
+        }
+    }
 
     /**
      * Get current authenticated user

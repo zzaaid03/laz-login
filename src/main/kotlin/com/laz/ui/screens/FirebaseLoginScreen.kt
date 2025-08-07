@@ -189,6 +189,21 @@ fun FirebaseLoginScreen(
             }
         }
         
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Temporary debug button to clear persistent session
+        OutlinedButton(
+            onClick = { 
+                authViewModel.clearSession()
+                android.util.Log.d("DEBUG", "Clearing persistent Firebase session")
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Clear Session (Debug)")
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
         // Divider
         Row(
             modifier = Modifier
