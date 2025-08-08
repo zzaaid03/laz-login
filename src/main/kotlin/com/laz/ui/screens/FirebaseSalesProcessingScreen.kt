@@ -135,7 +135,7 @@ fun FirebaseSalesProcessingScreen(
                                     Text("${product.name} x$quantity")
                                     Text(
                                         NumberFormat.getCurrencyInstance(Locale.US)
-                                            .format(product.price * quantity)
+                                            .format(product.price.multiply(BigDecimal(quantity)))
                                     )
                                 }
                             }
