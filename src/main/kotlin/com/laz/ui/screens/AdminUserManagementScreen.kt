@@ -236,7 +236,7 @@ fun AdminUserManagementScreen(
     if (showCreateEmployeeDialog) {
         CreateEmployeeDialog(
             onDismiss = { showCreateEmployeeDialog = false },
-            onCreateEmployee = { username, email, password, phone, address ->
+            onCreateEmployee = { username, email, password, phone, address, role ->
                 userViewModel.createEmployee(username, email, password, phone, address)
                 showCreateEmployeeDialog = false
             }
