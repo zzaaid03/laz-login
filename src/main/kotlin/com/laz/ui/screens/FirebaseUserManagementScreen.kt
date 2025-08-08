@@ -359,7 +359,7 @@ private fun AddUserDialog(
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var selectedRole by remember { mutableStateOf(UserRole.CUSTOMER) }
+    var selectedRole by remember { mutableStateOf(UserRole.ADMIN) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 

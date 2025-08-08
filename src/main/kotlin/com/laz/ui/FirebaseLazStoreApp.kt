@@ -14,9 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.laz.models.UserRole
 import com.laz.ui.screens.*
-import com.laz.viewmodels.FirebaseAuthViewModel
-import com.laz.viewmodels.SecureFirebaseProductViewModel
-import com.laz.viewmodels.FirebaseServices
+import com.laz.viewmodels.*
 
 /**
  * Firebase-integrated LAZ Store App
@@ -169,7 +167,7 @@ fun FirebaseLazStoreApp(
                                 popUpTo(0) { inclusive = true } 
                             }
                         },
-                        onNavigateToShopping = { navController.navigate(Screen.ProductScreen.route) },
+                        onNavigateToShopping = { navController.navigate(Screen.CustomerShopping.route) },
                         onNavigateToCart = { navController.navigate(Screen.EnhancedCart.route) },
                         onNavigateToProfile = { navController.navigate(Screen.ProfileScreen.route) },
                         onNavigateToOrderHistory = { navController.navigate(Screen.OrderHistory.route) },
@@ -214,8 +212,8 @@ fun FirebaseLazStoreApp(
             
             // Sales Processing Screen - Point of Sale
             composable(Screen.SalesProcessing.route) {
-                EmployeeProductManagementScreen(
-                    onBackClick = { navController.popBackStack() }
+                FirebaseSalesProcessingScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
             
@@ -249,6 +247,23 @@ fun FirebaseLazStoreApp(
                     onBack = { navController.popBackStack() }
                 )
             }
+            
+            // Customer Shopping Screen - Product browsing for customers
+            composable(Screen.CustomerShopping.route) {
+                val productViewModel: SecureFirebaseProductViewModel = viewModel(
+                    factory = FirebaseServices.secureViewModelFactory
+                )
+                val cartViewModel: SecureFirebaseCartViewModel = viewModel(
+                    factory = FirebaseServices.secureViewModelFactory
+                )
+                
+                CustomerShoppingScreen(
+                    productViewModel = productViewModel,
+                    cartViewModel = cartViewModel,
+                    onNavigateToCart = { navController.navigate(Screen.EnhancedCart.route) },
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
@@ -264,6 +279,7 @@ sealed class Screen(val route: String) {
     object CustomerDashboard : Screen("customer_dashboard")
     object ProductManagement : Screen("product_management")
     object ProductScreen : Screen("product_screen")
+    object CustomerShopping : Screen("customer_shopping")
     object CartScreen : Screen("cart_screen")
     object EnhancedCart : Screen("enhanced_cart")
     object ProfileScreen : Screen("profile_screen")

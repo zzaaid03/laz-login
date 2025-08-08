@@ -116,10 +116,7 @@ private fun SimpleTabIndicator() {
 
 @Composable
 private fun ProductItem(
-    product: Product,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onInventoryUpdate: () -> Unit
+    product: Product
 ) {
     Card(
         modifier = Modifier
@@ -178,38 +175,18 @@ private fun ProductItem(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Action buttons
+            // Read-only indicator
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Edit button
-                IconButton(onClick = onEdit) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Product",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                
-                // Update inventory button
-                IconButton(onClick = onInventoryUpdate) {
-                    Icon(
-                        imageVector = Icons.Default.Inventory,
-                        contentDescription = "Update Inventory",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                
-                // Delete button
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Product",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+                Text(
+                    text = "View Only",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(8.dp)
+                )
             }
         }
     }
@@ -688,21 +665,6 @@ fun EmployeeProductManagementScreen(
                     )
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    selectedProduct = null
-                    showAddDialog = true
-                },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Product",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
         }
     ) { paddingValues ->
         Column(
@@ -813,19 +775,7 @@ fun EmployeeProductManagementScreen(
                 ) {
                     items(displayProducts) { product: Product ->
                         ProductItem(
-                            product = product,
-                            onEdit = {
-                                selectedProduct = product
-                                showEditDialog = true
-                            },
-                            onDelete = {
-                                selectedProduct = product
-                                showDeleteConfirmation = true
-                            },
-                            onInventoryUpdate = {
-                                selectedProduct = product
-                                showInventoryDialog = true
-                            }
+                            product = product
                         )
                     }
                     

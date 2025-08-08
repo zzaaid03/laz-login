@@ -242,25 +242,25 @@ fun EmployeeDashboardScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            Icons.Default.Add,
+                            Icons.Default.Visibility,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Product")
+                        Text("View Products")
                     }
                     
                     OutlinedButton(
-                        onClick = { /* Quick stock update */ },
+                        onClick = { onNavigateToSalesProcessing() },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            Icons.Default.Update,
+                            Icons.Default.PointOfSale,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Update Stock")
+                        Text("Process Sale")
                     }
                 }
             }

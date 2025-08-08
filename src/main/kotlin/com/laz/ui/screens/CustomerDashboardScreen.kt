@@ -219,7 +219,7 @@ fun CustomerDashboardScreen(
                         ) { onNavigateToShopping() }
                         
                         ActionCard(
-                            title = "View Cart",
+                            title = "My Cart",
                             description = "Review and checkout items",
                             icon = Icons.Default.ShoppingCart,
                             modifier = Modifier.weight(1f)
@@ -257,8 +257,8 @@ fun CustomerDashboardScreen(
                         ) { onNavigateToChat() }
                         
                         ActionCard(
-                            title = "Enhanced Cart",
-                            description = "View and manage your cart",
+                            title = "Manage Cart",
+                            description = "View, edit and checkout items",
                             icon = Icons.Default.ShoppingCart,
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToCart() }
@@ -446,11 +446,6 @@ private fun WelcomeSection(user: User) {
                 text = "Welcome, ${user.username}!",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
-            )
-            Text(
-                text = "Role: CUSTOMER",
-                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
             Spacer(modifier = Modifier.height(8.dp))

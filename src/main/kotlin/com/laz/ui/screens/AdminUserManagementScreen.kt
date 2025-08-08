@@ -584,13 +584,15 @@ private fun UserCard(
 @Composable
 private fun CreateEmployeeDialog(
     onDismiss: () -> Unit,
-    onCreateEmployee: (String, String, String, String, String) -> Unit
+    onCreateEmployee: (String, String, String, String, String, UserRole) -> Unit
 ) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var selectedRole by remember { mutableStateOf(UserRole.EMPLOYEE) }
+    var showRoleDropdown by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
     
     Dialog(onDismissRequest = onDismiss) {
@@ -669,6 +671,53 @@ private fun CreateEmployeeDialog(
                     maxLines = 2
                 )
                 
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Role Selection
+                ExposedDropdownMenuBox(
+                    expanded = showRoleDropdown,
+                    onExpandedChange = { showRoleDropdown = !showRoleDropdown }
+                ) {
+                    OutlinedTextField(
+                        value = when (selectedRole) {
+                            UserRole.ADMIN -> "Admin"
+                            UserRole.EMPLOYEE -> "Employee"
+                            else -> "Employee"
+                        },
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Role") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(
+                                expanded = showRoleDropdown
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+                    
+                    ExposedDropdownMenu(
+                        expanded = showRoleDropdown,
+                        onDismissRequest = { showRoleDropdown = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Admin") },
+                            onClick = {
+                                selectedRole = UserRole.ADMIN
+                                showRoleDropdown = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Employee") },
+                            onClick = {
+                                selectedRole = UserRole.EMPLOYEE
+                                showRoleDropdown = false
+                            }
+                        )
+                    }
+                }
+                
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Row(
@@ -682,12 +731,16 @@ private fun CreateEmployeeDialog(
                     Button(
                         onClick = {
                             if (username.isNotBlank() && email.isNotBlank() && password.isNotBlank()) {
-                                onCreateEmployee(username, email, password, phoneNumber, address)
+                                onCreateEmployee(username, email, password, phoneNumber, address, selectedRole)
                             }
                         },
                         enabled = username.isNotBlank() && email.isNotBlank() && password.isNotBlank()
                     ) {
-                        Text("Create Employee")
+                        Text(when (selectedRole) {
+                            UserRole.ADMIN -> "Create Admin"
+                            UserRole.EMPLOYEE -> "Create Employee"
+                            else -> "Create Employee"
+                        })
                     }
                 }
             }
