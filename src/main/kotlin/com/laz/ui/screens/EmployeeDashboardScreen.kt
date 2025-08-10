@@ -127,7 +127,7 @@ fun EmployeeDashboardScreen(
                         title = "Total Products",
                         value = totalProducts.toString(),
                         icon = Icons.Default.Inventory,
-                        color = Color(0xFF2196F3),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToProductManagement() }
                     
@@ -135,7 +135,7 @@ fun EmployeeDashboardScreen(
                         title = "Low Stock",
                         value = lowStockProducts.toString(),
                         icon = Icons.Default.Warning,
-                        color = Color(0xFFFF9800),
+                        color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToProductManagement() }
                 }
@@ -151,7 +151,7 @@ fun EmployeeDashboardScreen(
                         title = "Out of Stock",
                         value = outOfStockProducts.toString(),
                         icon = Icons.Default.RemoveShoppingCart,
-                        color = Color(0xFFF44336),
+                        color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToProductManagement() }
                     
@@ -159,7 +159,7 @@ fun EmployeeDashboardScreen(
                         title = "Today's Sales",
                         value = NumberFormat.getCurrencyInstance(Locale.US).format(todaysSales.value),
                         icon = Icons.Default.TrendingUp,
-                        color = Color(0xFF4CAF50),
+                        color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
                     ) { /* Navigate to sales overview */ }
                 }

@@ -31,7 +31,14 @@ class SecureFirebaseProductViewModel(
     val permissionError: StateFlow<String?> = _permissionError.asStateFlow()
 
     init {
-        loadProducts()
+        // Load products when user authentication state is available
+        viewModelScope.launch {
+            currentUser.collect { user ->
+                if (user != null) {
+                    loadProducts()
+                }
+            }
+        }
     }
 
     /**

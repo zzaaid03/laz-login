@@ -112,12 +112,12 @@ fun FirebaseUserManagementScreen(
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                     Text(
-                        text = "No users found",
+                        text = "No employees or admins found",
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                     Text(
-                        text = "Add users to get started",
+                        text = "Add employees or admins to get started",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -127,7 +127,12 @@ fun FirebaseUserManagementScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(users) { user ->
+                    // Filter users to only show ADMIN and EMPLOYEE roles (not CUSTOMER)
+                    val managableUsers = users.filter { user ->
+                        user.role == UserRole.ADMIN || user.role == UserRole.EMPLOYEE
+                    }
+                    
+                    items(managableUsers) { user ->
                         UserCard(
                             user = user,
                             onEdit = {

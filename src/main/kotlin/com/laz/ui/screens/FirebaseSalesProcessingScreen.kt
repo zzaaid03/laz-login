@@ -22,12 +22,13 @@ import com.laz.viewmodels.FirebaseServices
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.*
+import java.math.BigDecimal
 
 /**
  * Firebase Sales Processing Screen
  * Point of Sale interface for processing customer purchases
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class) 
 @Composable
 fun FirebaseSalesProcessingScreen(
     onBack: () -> Unit
@@ -166,14 +167,18 @@ fun FirebaseSalesProcessingScreen(
             // Products List
             if (isLoading) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {

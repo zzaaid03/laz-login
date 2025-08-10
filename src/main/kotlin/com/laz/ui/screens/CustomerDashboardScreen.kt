@@ -154,7 +154,7 @@ fun CustomerDashboardScreen(
                         title = "Available Products",
                         value = availableProducts.toString(),
                         icon = Icons.Default.Storefront,
-                        color = Color(0xFF4CAF50),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToShopping() }
                     
@@ -162,7 +162,7 @@ fun CustomerDashboardScreen(
                         title = "Cart Items",
                         value = cartItemCount.toString(),
                         icon = Icons.Default.ShoppingCart,
-                        color = Color(0xFF2196F3),
+                        color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToCart() }
                 }
@@ -178,7 +178,7 @@ fun CustomerDashboardScreen(
                         title = "Cart Total",
                         value = NumberFormat.getCurrencyInstance(Locale.US).format(cartTotal),
                         icon = Icons.Default.AttachMoney,
-                        color = Color(0xFFFF9800),
+                        color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToCart() }
                     
@@ -186,7 +186,7 @@ fun CustomerDashboardScreen(
                         title = "New Products",
                         value = newProducts.toString(),
                         icon = Icons.Default.NewReleases,
-                        color = Color(0xFF9C27B0),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToShopping() }
                 }
