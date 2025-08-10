@@ -58,7 +58,8 @@ class SecureFirebaseViewModelFactory(
             }
             FirebaseSalesViewModel::class.java -> {
                 FirebaseSalesViewModel(
-                    firebaseProductRepository = firebaseProductRepository
+                    firebaseProductRepository = firebaseProductRepository,
+                    firebaseDatabaseService = FirebaseServices.databaseService
                 ) as T
             }
             FirebaseReturnsViewModel::class.java -> {
@@ -80,6 +81,7 @@ object FirebaseServices {
     val userRepository: FirebaseUserRepository by lazy { FirebaseUserRepository() }
     val productRepository: FirebaseProductRepository by lazy { FirebaseProductRepository() }
     val cartRepository: FirebaseCartRepository by lazy { FirebaseCartRepository() }
+    val databaseService: com.laz.firebase.FirebaseDatabaseService by lazy { com.laz.firebase.FirebaseDatabaseService() }
     
     // Current user StateFlow that combines Firebase auth with User model data
     private val _currentUser = MutableStateFlow<User?>(null)

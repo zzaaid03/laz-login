@@ -112,7 +112,7 @@ fun CustomerShoppingScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -120,7 +120,7 @@ fun CustomerShoppingScreen(
                         contentDescription = "Shopping",
                         tint = MaterialTheme.colorScheme.onTertiaryContainer
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Column {
                         Text(
                             text = "Welcome to LAZ Store!",
@@ -136,7 +136,7 @@ fun CustomerShoppingScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Products List
             if (isLoading) {
@@ -153,16 +153,16 @@ fun CustomerShoppingScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(32.dp),
+                            .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
                             Icons.Default.Inventory,
                             contentDescription = "No Products",
-                            modifier = Modifier.size(64.dp),
+                            modifier = Modifier.size(32.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "No Products Available",
                             style = MaterialTheme.typography.headlineSmall,
@@ -177,7 +177,7 @@ fun CustomerShoppingScreen(
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     items(products) { product ->
                         CustomerProductCard(
@@ -193,26 +193,26 @@ fun CustomerShoppingScreen(
             
             // Error Messages
             errorMessage?.let { error ->
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                 ) {
                     Text(
                         text = error,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(8.dp),
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
             }
             
             cartError?.let { error ->
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                 ) {
                     Text(
                         text = error,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(8.dp),
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
@@ -220,13 +220,13 @@ fun CustomerShoppingScreen(
             
             // Success Messages
             cartOperationSuccess?.let { success ->
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50))
                 ) {
                     Text(
                         text = success,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(8.dp),
                         color = Color.White
                     )
                 }
@@ -258,7 +258,7 @@ private fun CustomerProductCard(
     
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -275,7 +275,7 @@ private fun CustomerProductCard(
                         fontWeight = FontWeight.Bold
                     )
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     
                     Text(
                         text = "$${product.price}",
@@ -284,7 +284,7 @@ private fun CustomerProductCard(
                         fontWeight = FontWeight.Bold
                     )
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     
                     // Stock Status (customer-friendly)
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -300,9 +300,9 @@ private fun CustomerProductCard(
                                 product.quantity > 0 -> Color(0xFFFF9800)
                                 else -> MaterialTheme.colorScheme.error
                             },
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(8.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = when {
                                 product.quantity > 10 -> "In Stock"
@@ -334,18 +334,18 @@ private fun CustomerProductCard(
                             Icon(
                                 Icons.Default.AddShoppingCart,
                                 contentDescription = "Add to Cart",
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(9.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
                             Text("Add to Cart")
                         }
                         
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         
                         // Quick Add Button
                         OutlinedButton(
                             onClick = { onAddToCart(product.id, 1) },
-                            modifier = Modifier.size(width = 120.dp, height = 36.dp),
+                            modifier = Modifier.size(width = 60.dp, height = 18.dp),
                             contentPadding = PaddingValues(4.dp)
                         ) {
                             Text(
@@ -381,11 +381,11 @@ private fun CustomerProductCard(
                 Column {
                     Text("Product: ${product.name}")
                     Text("Price: $${product.price} each")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         IconButton(
                             onClick = { if (quantity > 1) quantity-- },
@@ -397,7 +397,7 @@ private fun CustomerProductCard(
                         Text(
                             text = quantity.toString(),
                             style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.width(40.dp),
+                            modifier = Modifier.width(20.dp),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                         

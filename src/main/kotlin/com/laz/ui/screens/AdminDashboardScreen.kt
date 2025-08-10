@@ -142,7 +142,7 @@ fun AdminDashboardScreen(
                         title = "Total Sales",
                         value = NumberFormat.getCurrencyInstance(Locale.US).format(todaysSales.value),
                         icon = Icons.Default.AttachMoney,
-                        color = Color(0xFF4CAF50),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToSalesOverview() }
                     
@@ -150,7 +150,7 @@ fun AdminDashboardScreen(
                         title = "Products",
                         value = totalProducts.toString(),
                         icon = Icons.Default.Inventory,
-                        color = Color(0xFF2196F3),
+                        color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToProductManagement() }
                 }
@@ -166,7 +166,7 @@ fun AdminDashboardScreen(
                         title = "Low Stock",
                         value = lowStockProducts.toString(),
                         icon = Icons.Default.Warning,
-                        color = Color(0xFFFF9800),
+                        color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToProductManagement() }
                     
@@ -174,7 +174,7 @@ fun AdminDashboardScreen(
                         title = "Employees",
                         value = totalEmployees.toString(),
                         icon = Icons.Default.People,
-                        color = Color(0xFF9C27B0),
+                        color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToUserManagement() }
                 }
@@ -190,7 +190,7 @@ fun AdminDashboardScreen(
                         title = "Today's Sales",
                         value = NumberFormat.getCurrencyInstance(Locale.US).format(todaysSales.value),
                         icon = Icons.AutoMirrored.Filled.TrendingUp,
-                        color = Color(0xFF4CAF50),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     ) { /* Navigate to today's sales */ }
                     
@@ -198,7 +198,7 @@ fun AdminDashboardScreen(
                         title = "Returns",
                         value = totalReturns.value.toString(),
                         icon = Icons.AutoMirrored.Filled.AssignmentReturn,
-                        color = Color(0xFFF44336),
+                        color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToReturnsProcessing() }
                 }

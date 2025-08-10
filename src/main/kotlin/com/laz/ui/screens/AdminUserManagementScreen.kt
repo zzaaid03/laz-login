@@ -236,7 +236,7 @@ fun AdminUserManagementScreen(
     if (showCreateEmployeeDialog) {
         CreateEmployeeDialog(
             onDismiss = { showCreateEmployeeDialog = false },
-            onCreateEmployee = { username, email, password, phone, address ->
+            onCreateEmployee = { username, email, password, phone, address, _ ->
                 userViewModel.createEmployee(username, email, password, phone, address)
                 showCreateEmployeeDialog = false
             }
@@ -581,6 +581,7 @@ private fun UserCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreateEmployeeDialog(
     onDismiss: () -> Unit,
