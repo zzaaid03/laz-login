@@ -546,7 +546,8 @@ fun ProductFormDialog(
 @Composable
 fun EmployeeProductManagementScreen(
     onBackClick: () -> Unit,
-    productViewModel: SecureFirebaseProductViewModel = viewModel()
+    productViewModel: SecureFirebaseProductViewModel = viewModel(),
+    userRole: String? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -573,6 +574,7 @@ fun EmployeeProductManagementScreen(
     val products by productViewModel.products.collectAsState()
     val isLoading by productViewModel.isLoading.collectAsState()
     val errorMessage by productViewModel.errorMessage.collectAsState()
+    val permissionError by productViewModel.permissionError.collectAsState()
     
     val lowStockProducts = products.filter { it.quantity <= LOW_STOCK_THRESHOLD }
     
@@ -665,6 +667,21 @@ fun EmployeeProductManagementScreen(
                     )
                 }
             )
+        },
+        floatingActionButton = {
+            // Show Add Product button only for admins
+            if (userRole == "ADMIN") {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Product",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         Column(
@@ -718,9 +735,78 @@ fun EmployeeProductManagementScreen(
                 }
             }
             
+            // Error Messages Display
+            permissionError?.let { error ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Permission Error",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { 
+                                // Clear error and retry loading
+                                productViewModel.loadProducts()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Retry", color = MaterialTheme.colorScheme.onError)
+                        }
+                    }
+                }
+            }
+            
+            errorMessage?.let { error ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Error",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            
             // Products Grid
             AnimatedVisibility(
-                visible = !isLoading,
+                visible = !isLoading && permissionError == null,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -762,6 +848,25 @@ fun EmployeeProductManagementScreen(
                                     onClick = { selectedTabIndex = 0 }
                                 ) {
                                     Text("View All Products")
+                                }
+                            } else if (products.isEmpty()) {
+                                // Show button to create sample products if database is empty
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "No products in database",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Button(
+                                        onClick = { 
+                                            productViewModel.createSampleProducts()
+                                        }
+                                    ) {
+                                        Text("Create Sample Products")
+                                    }
                                 }
                             }
                         }

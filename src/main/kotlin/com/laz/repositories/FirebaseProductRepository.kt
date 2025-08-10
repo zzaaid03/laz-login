@@ -59,10 +59,25 @@ class FirebaseProductRepository {
      */
     suspend fun getAllProducts(): Result<List<Product>> {
         return try {
+            println("DEBUG: Fetching products from Firebase...")
             val snapshot = productsRef.get().await()
-            val products = snapshot.children.mapNotNull { it.toProduct() }
+            println("DEBUG: Firebase snapshot exists: ${snapshot.exists()}")
+            println("DEBUG: Firebase snapshot children count: ${snapshot.childrenCount}")
+            
+            val products = snapshot.children.mapNotNull { childSnapshot ->
+                val product = childSnapshot.toProduct()
+                if (product != null) {
+                    println("DEBUG: Loaded product: ${product.name} (ID: ${product.id})")
+                } else {
+                    println("DEBUG: Failed to parse product from snapshot: ${childSnapshot.key}")
+                }
+                product
+            }
+            
+            println("DEBUG: Successfully loaded ${products.size} products from Firebase")
             Result.success(products)
         } catch (e: Exception) {
+            println("DEBUG: Exception in getAllProducts: ${e.message}")
             Result.failure(e)
         }
     }
@@ -74,9 +89,9 @@ class FirebaseProductRepository {
         return try {
             val updates = mapOf(
                 "name" to product.name,
-                "price" to product.price,
+                "price" to product.price.toString(),
                 "quantity" to product.quantity,
-                "cost" to product.cost,
+                "cost" to product.cost.toString(),
                 "shelfLocation" to product.shelfLocation,
                 "updatedAt" to System.currentTimeMillis()
             )

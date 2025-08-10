@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.laz.models.Return
 import com.laz.models.Sale
 import com.laz.repositories.FirebaseProductRepository
+import com.laz.repositories.FirebaseReturnsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +21,8 @@ import java.util.*
  * Returns data structure would need to be defined in Firebase schema
  */
 class FirebaseReturnsViewModel(
-    private val firebaseProductRepository: FirebaseProductRepository
+    private val firebaseProductRepository: FirebaseProductRepository,
+    private val firebaseReturnsRepository: FirebaseReturnsRepository
 ) : ViewModel() {
     
     private val _returns = MutableStateFlow<List<Return>>(emptyList())
@@ -31,6 +33,40 @@ class FirebaseReturnsViewModel(
     
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+    
+    private val _returnsCount = MutableStateFlow(0)
+    val returnsCount: StateFlow<Int> = _returnsCount.asStateFlow()
+    
+    init {
+        loadAllReturns()
+        // Start collecting returns from repository
+        viewModelScope.launch {
+            firebaseReturnsRepository.getAllReturns().collect { returnsList ->
+                _returns.value = returnsList
+                _returnsCount.value = returnsList.size
+            }
+        }
+    }
+
+    /**
+     * Load all returns from Firebase
+     */
+    fun loadAllReturns() {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _errorMessage.value = null
+                
+                // Data will be loaded via the Flow in init block
+                // This method can be called to refresh or handle errors
+                
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to load returns: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
     /**
      * Process a return (simplified version for Firebase integration)
@@ -53,11 +89,75 @@ class FirebaseReturnsViewModel(
             val updateResult = firebaseProductRepository.updateProduct(updatedProduct)
             
             if (updateResult.isSuccess) {
-                // In a full implementation, we would also save the return record to Firebase
-                // For now, we just update the product quantity
-                true
+                // Create return record in Firebase
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val returnRecord = Return(
+                    saleId = productId, // Using productId as saleId for now (should be actual saleId)
+                    reason = reason,
+                    date = dateFormat.format(Date())
+                )
+                
+                val returnResult = firebaseReturnsRepository.createReturn(returnRecord)
+                if (returnResult.isSuccess) {
+                    println("DEBUG: Return record created successfully")
+                    true
+                } else {
+                    _errorMessage.value = "Failed to save return record: ${returnResult.exceptionOrNull()?.message}"
+                    false
+                }
             } else {
-                _errorMessage.value = "Failed to process return: ${updateResult.exceptionOrNull()?.message}"
+                _errorMessage.value = "Failed to update product inventory: ${updateResult.exceptionOrNull()?.message}"
+                false
+            }
+        } catch (e: Exception) {
+            _errorMessage.value = "Error processing return: ${e.message}"
+            false
+        } finally {
+            _isLoading.value = false
+        }
+    }
+
+    /**
+     * Process a return from a sale object
+     * This is the main method used by the returns processing screen
+     */
+    suspend fun processReturnFromSale(sale: Sale, reason: String): Boolean {
+        return try {
+            _isLoading.value = true
+            println("DEBUG: Processing return for sale ID: ${sale.id}, product: ${sale.productName}")
+            
+            // Get the product from Firebase to update inventory
+            val productResult = firebaseProductRepository.getProductById(sale.productId)
+            val product = productResult.getOrNull()
+            if (product == null) {
+                _errorMessage.value = "Product not found for return"
+                return false
+            }
+            
+            // Update product quantity (add back returned items)
+            val updatedProduct = product.copy(quantity = product.quantity + sale.quantity)
+            println("DEBUG: Updating product ${product.name} from quantity ${product.quantity} to ${updatedProduct.quantity}")
+            val updateResult = firebaseProductRepository.updateProduct(updatedProduct)
+            
+            if (updateResult.isSuccess) {
+                // Create return record in Firebase
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                val returnRecord = Return(
+                    saleId = sale.id,
+                    reason = reason,
+                    date = dateFormat.format(Date())
+                )
+                
+                val returnResult = firebaseReturnsRepository.createReturn(returnRecord)
+                if (returnResult.isSuccess) {
+                    println("DEBUG: Return record created successfully for sale ID: ${sale.id}")
+                    true
+                } else {
+                    _errorMessage.value = "Failed to save return record: ${returnResult.exceptionOrNull()?.message}"
+                    false
+                }
+            } else {
+                _errorMessage.value = "Failed to update product inventory: ${updateResult.exceptionOrNull()?.message}"
                 false
             }
         } catch (e: Exception) {

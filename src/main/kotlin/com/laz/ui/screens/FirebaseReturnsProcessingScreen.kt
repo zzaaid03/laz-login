@@ -29,7 +29,8 @@ import java.util.*
 @Composable
 fun FirebaseReturnsProcessingScreen(
     onBack: () -> Unit,
-    salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
+    salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
+    returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
     val sales by salesViewModel.sales.collectAsState()
     val isLoading by salesViewModel.isLoading.collectAsState()
@@ -152,20 +153,30 @@ fun FirebaseReturnsProcessingScreen(
                     scope.launch {
                         isProcessing = true
                         try {
-                            // Process return - update sale as returned
-                            val updatedSale = sale.copy(isReturned = true)
-                            val success = salesViewModel.updateSale(updatedSale)
+                            // Process return using the returns ViewModel
+                            // This will: 1) Create return record, 2) Update product inventory, 3) Mark sale as returned
+                            val returnSuccess = returnsViewModel.processReturnFromSale(sale, returnReason)
                             
-                            if (success) {
-                                processedReturn = sale
-                                showReturnDialog = false
-                                showSuccessDialog = true
-                                salesViewModel.refresh() // Refresh the list
+                            if (returnSuccess) {
+                                // Update sale as returned
+                                val updatedSale = sale.copy(isReturned = true)
+                                val saleUpdateSuccess = salesViewModel.updateSale(updatedSale)
+                                
+                                if (saleUpdateSuccess) {
+                                    processedReturn = sale
+                                    showReturnDialog = false
+                                    showSuccessDialog = true
+                                    salesViewModel.refresh() // Refresh the sales list
+                                } else {
+                                    showReturnDialog = false
+                                    showErrorDialog = true
+                                }
                             } else {
                                 showReturnDialog = false
                                 showErrorDialog = true
                             }
                         } catch (e: Exception) {
+                            println("DEBUG: Return processing error: ${e.message}")
                             showReturnDialog = false
                             showErrorDialog = true
                         } finally {
@@ -472,6 +483,5 @@ fun ReturnSuccessDialog(
 }
 
 private fun formatCurrency(amount: BigDecimal): String {
-    val formatter = NumberFormat.getCurrencyInstance(Locale.US)
-    return formatter.format(amount)
+    return "${amount.setScale(2)} JOD"
 }
