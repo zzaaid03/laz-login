@@ -1,9 +1,11 @@
 package com.laz.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.AssignmentReturn
@@ -22,6 +24,7 @@ import com.laz.models.User
 import com.laz.viewmodels.*
 import java.math.BigDecimal
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
 import java.util.*
 
 /**
@@ -40,17 +43,30 @@ fun AdminDashboardScreen(
     onNavigateToReturnsProcessing: () -> Unit,
     onNavigateToSalesOverview: () -> Unit,
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
-    userViewModel: SecureFirebaseUserViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
+    userViewModel: SecureFirebaseUserViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
+    salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.viewModelFactory),
+    returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.viewModelFactory)
 ) {
     // Collect state from ViewModels
     val userStats by userViewModel.getUserStatistics().collectAsState()
     val products by productViewModel.products.collectAsState()
     val errorMessage by userViewModel.errorMessage.collectAsState()
     
+    // Collect real Firebase sales and returns data
+    val sales by salesViewModel.sales.collectAsState()
+    val totalSalesAmount by salesViewModel.totalSalesAmount.collectAsState()
+    val salesCount by salesViewModel.salesCount.collectAsState()
+    val returns by returnsViewModel.returns.collectAsState()
+    val returnsCount by returnsViewModel.returnsCount.collectAsState()
+    val salesErrorMessage by salesViewModel.errorMessage.collectAsState()
+    val returnsErrorMessage by returnsViewModel.errorMessage.collectAsState()
+    
     // Load data on screen start
     LaunchedEffect(Unit) {
         userViewModel.loadUsers()
         productViewModel.loadProducts()
+        salesViewModel.loadAllSales()
+        returnsViewModel.loadAllReturns()
     }
     
     // Calculate statistics from loaded data
@@ -59,9 +75,16 @@ fun AdminDashboardScreen(
     val lowStockProducts = products.filter { it.quantity <= 5 }.size
     val totalEmployees = userStats.employeeCount
     
-    // Mock data for sales and returns (since Firebase sales/returns aren't fully implemented)
-    val todaysSales = remember { mutableStateOf(BigDecimal("1250.75")) }
-    val totalReturns = remember { mutableStateOf(3) }
+    // Calculate today's sales from real Firebase data
+    val todaysSales = remember(sales) {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        sales.filter { sale ->
+            sale.date.startsWith(today)
+        }.sumOf { sale ->
+            // Parse price from "JOD XX.XX" format
+            sale.productPrice.replace("JOD ", "").toDoubleOrNull() ?: 0.0
+        }
+    }
     
     Scaffold(
         topBar = {
@@ -124,12 +147,39 @@ fun AdminDashboardScreen(
             
             // Statistics Overview
             item {
-                Text(
-                    "Overview",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Real-time Dashboard",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                    
+                    // Live indicator
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    Color.Green,
+                                    shape = androidx.compose.foundation.shape.CircleShape
+                                )
+                        )
+                        Text(
+                            "Live",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Green,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
             
             // Top Row Statistics
@@ -140,7 +190,7 @@ fun AdminDashboardScreen(
                 ) {
                     StatCard(
                         title = "Total Sales",
-                        value = NumberFormat.getCurrencyInstance(Locale.US).format(todaysSales.value),
+                        value = "JOD ${String.format("%.2f", totalSalesAmount)}",
                         icon = Icons.Default.AttachMoney,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
@@ -188,15 +238,15 @@ fun AdminDashboardScreen(
                 ) {
                     StatCard(
                         title = "Today's Sales",
-                        value = NumberFormat.getCurrencyInstance(Locale.US).format(todaysSales.value),
+                        value = "JOD ${String.format("%.2f", todaysSales)}",
                         icon = Icons.AutoMirrored.Filled.TrendingUp,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
-                    ) { /* Navigate to today's sales */ }
+                    ) { onNavigateToSalesOverview() }
                     
                     StatCard(
                         title = "Returns",
-                        value = totalReturns.value.toString(),
+                        value = returnsCount.toString(),
                         icon = Icons.AutoMirrored.Filled.AssignmentReturn,
                         color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
@@ -271,6 +321,83 @@ fun AdminDashboardScreen(
                 }
             }
             
+            // Recent Sales Activity Section
+            item {
+                Text(
+                    "Recent Sales Activity",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            
+            // Recent Sales List
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        if (sales.isEmpty()) {
+                            Text(
+                                "No sales recorded yet",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            // Show last 3 sales
+                            sales.take(3).forEach { sale ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            "Sale #${sale.id.toString().take(8)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            sale.date.take(16).replace("T", " "),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        sale.productPrice,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                if (sale != sales.take(3).last()) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(vertical = 4.dp),
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    )
+                                }
+                            }
+                            
+                            if (sales.size > 3) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(
+                                    onClick = { onNavigateToSalesOverview() },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("View All Sales (${sales.size})")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
             // Error handling
             errorMessage?.let { error ->
                 item {
@@ -281,6 +408,39 @@ fun AdminDashboardScreen(
                     ) {
                         Text(
                             text = error,
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            
+            // Sales and Returns error handling
+            salesErrorMessage?.let { error ->
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = "Sales Error: $error",
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            
+            returnsErrorMessage?.let { error ->
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = "Returns Error: $error",
                             modifier = Modifier.padding(16.dp),
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )

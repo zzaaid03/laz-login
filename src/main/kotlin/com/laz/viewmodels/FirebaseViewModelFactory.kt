@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.laz.repositories.FirebaseCartRepository
 import com.laz.repositories.FirebaseProductRepository
 import com.laz.repositories.FirebaseUserRepository
+import com.laz.repositories.FirebaseSalesRepository
+import com.laz.repositories.FirebaseReturnsRepository
 import com.laz.services.FirebaseAuthService
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +26,8 @@ class SecureFirebaseViewModelFactory(
     private val firebaseUserRepository: FirebaseUserRepository,
     private val firebaseProductRepository: FirebaseProductRepository,
     private val firebaseCartRepository: FirebaseCartRepository,
+    private val firebaseSalesRepository: FirebaseSalesRepository,
+    private val firebaseReturnsRepository: FirebaseReturnsRepository,
     private val currentUser: StateFlow<User?>
 ) : ViewModelProvider.Factory {
 
@@ -59,12 +63,15 @@ class SecureFirebaseViewModelFactory(
             FirebaseSalesViewModel::class.java -> {
                 FirebaseSalesViewModel(
                     firebaseProductRepository = firebaseProductRepository,
-                    firebaseDatabaseService = FirebaseServices.databaseService
+                    firebaseSalesRepository = firebaseSalesRepository,
+                    firebaseDatabaseService = FirebaseServices.databaseService,
+                    currentUser = currentUser
                 ) as T
             }
             FirebaseReturnsViewModel::class.java -> {
                 FirebaseReturnsViewModel(
-                    firebaseProductRepository = firebaseProductRepository
+                    firebaseProductRepository = firebaseProductRepository,
+                    firebaseReturnsRepository = firebaseReturnsRepository
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
@@ -81,6 +88,8 @@ object FirebaseServices {
     val userRepository: FirebaseUserRepository by lazy { FirebaseUserRepository() }
     val productRepository: FirebaseProductRepository by lazy { FirebaseProductRepository() }
     val cartRepository: FirebaseCartRepository by lazy { FirebaseCartRepository() }
+    val salesRepository: FirebaseSalesRepository by lazy { FirebaseSalesRepository() }
+    val returnsRepository: FirebaseReturnsRepository by lazy { FirebaseReturnsRepository() }
     val databaseService: com.laz.firebase.FirebaseDatabaseService by lazy { com.laz.firebase.FirebaseDatabaseService() }
     
     // Current user StateFlow that combines Firebase auth with User model data
@@ -140,6 +149,8 @@ object FirebaseServices {
             firebaseUserRepository = userRepository,
             firebaseProductRepository = productRepository,
             firebaseCartRepository = cartRepository,
+            firebaseSalesRepository = salesRepository,
+            firebaseReturnsRepository = returnsRepository,
             currentUser = currentUser
         )
     }

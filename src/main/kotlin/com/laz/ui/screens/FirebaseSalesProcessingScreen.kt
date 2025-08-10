@@ -25,6 +25,13 @@ import java.util.*
 import java.math.BigDecimal
 
 /**
+ * Format currency in Jordanian Dinar (JOD)
+ */
+private fun formatJOD(amount: BigDecimal): String {
+    return "${amount.setScale(2)} JOD"
+}
+
+/**
  * Firebase Sales Processing Screen
  * Point of Sale interface for processing customer purchases
  */
@@ -47,6 +54,10 @@ fun FirebaseSalesProcessingScreen(
     var selectedProducts by remember { mutableStateOf<Map<Long, Int>>(emptyMap()) }
     var searchQuery by remember { mutableStateOf("") }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var isProcessing by remember { mutableStateOf(false) }
+    var lastSaleResult by remember { mutableStateOf<String?>(null) }
     
     val scope = rememberCoroutineScope()
     
@@ -217,7 +228,7 @@ fun FirebaseSalesProcessingScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Total: ${NumberFormat.getCurrencyInstance(Locale.US).format(total)}",
+                        text = "Total: ${formatJOD(total.toBigDecimal())}",
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -225,20 +236,46 @@ fun FirebaseSalesProcessingScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch {
-                            // Process each selected product
-                            selectedProducts.forEach { (productId, quantity) ->
-                                val product = products.find { it.id == productId }
-                                if (product != null) {
-                                    salesViewModel.processSale(product, quantity, "Current User")
+                        if (!isProcessing) {
+                            isProcessing = true
+                            scope.launch {
+                                try {
+                                    var successCount = 0
+                                    var totalItems = selectedProducts.size
+                                    
+                                    // Process each selected product
+                                    selectedProducts.forEach { (productId, quantity) ->
+                                        val product = products.find { it.id == productId }
+                                        if (product != null) {
+                                            salesViewModel.processSale(product, quantity, "Current User")
+                                            successCount++
+                                        }
+                                    }
+                                    
+                                    // Show success feedback
+                                    lastSaleResult = "Successfully processed $successCount of $totalItems items"
+                                    selectedProducts = emptyMap()
+                                    showConfirmDialog = false
+                                    showSuccessDialog = true
+                                } catch (e: Exception) {
+                                    lastSaleResult = "Error processing sale: ${e.message}"
+                                    showErrorDialog = true
+                                } finally {
+                                    isProcessing = false
                                 }
                             }
-                            selectedProducts = emptyMap()
-                            showConfirmDialog = false
                         }
-                    }
+                    },
+                    enabled = !isProcessing
                 ) {
-                    Text("Confirm")
+                    if (isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Confirm")
+                    }
                 }
             },
             dismissButton = {
@@ -249,10 +286,61 @@ fun FirebaseSalesProcessingScreen(
         )
     }
     
-    // Error Message
+    // Success Dialog
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showSuccessDialog = false },
+            title = { Text("Sale Completed") },
+            text = {
+                Column {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(lastSaleResult ?: "Sale processed successfully!")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSuccessDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+    
+    // Error Dialog
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = false },
+            title = { Text("Sale Error") },
+            text = {
+                Column {
+                    Icon(
+                        Icons.Default.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(lastSaleResult ?: errorMessage ?: "An error occurred processing the sale")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showErrorDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+    
+    // Error Message from ViewModel
     errorMessage?.let { error ->
         LaunchedEffect(error) {
-            // Show snackbar or handle error
+            lastSaleResult = error
+            showErrorDialog = true
         }
     }
 }

@@ -46,11 +46,15 @@ class SecureFirebaseProductViewModel(
      */
     fun loadProducts() {
         val user = currentUser.value
+        println("DEBUG: Loading products for user: ${user?.username} (role: ${user?.role})")
+        
         if (!PermissionManager.canViewProducts(user)) {
+            println("DEBUG: Permission denied for user: ${user?.username}")
             _permissionError.value = "Access denied: You don't have permission to view products"
             return
         }
 
+        println("DEBUG: Permission granted, loading products from repository...")
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
@@ -59,12 +63,95 @@ class SecureFirebaseProductViewModel(
             try {
                 val result = productRepository.getAllProducts()
                 if (result.isSuccess) {
-                    _products.value = result.getOrNull() ?: emptyList()
+                    val products = result.getOrNull() ?: emptyList()
+                    println("DEBUG: Successfully loaded ${products.size} products from Firebase")
+                    _products.value = products
                 } else {
-                    _errorMessage.value = "Failed to load products: ${result.exceptionOrNull()?.message}"
+                    val errorMsg = "Failed to load products: ${result.exceptionOrNull()?.message}"
+                    println("DEBUG: $errorMsg")
+                    _errorMessage.value = errorMsg
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Failed to load products: ${e.message}"
+                val errorMsg = "Failed to load products: ${e.message}"
+                println("DEBUG: Exception during product loading: $errorMsg")
+                _errorMessage.value = errorMsg
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Create sample products for testing (Admin only)
+     */
+    fun createSampleProducts() {
+        val user = currentUser.value
+        if (!PermissionManager.canAddProducts(user)) {
+            _permissionError.value = "Access denied: Only administrators and employees can add products"
+            return
+        }
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val sampleProducts = listOf(
+                    Product(
+                        id = 0, // Will be auto-assigned
+                        name = "Laptop Computer",
+                        price = java.math.BigDecimal("999.99"),
+                        quantity = 10,
+                        cost = java.math.BigDecimal("750.00"),
+                        shelfLocation = "Electronics-A1"
+                    ),
+                    Product(
+                        id = 0, // Will be auto-assigned
+                        name = "Wireless Mouse",
+                        price = java.math.BigDecimal("29.99"),
+                        quantity = 50,
+                        cost = java.math.BigDecimal("15.00"),
+                        shelfLocation = "Electronics-B2"
+                    ),
+                    Product(
+                        id = 0, // Will be auto-assigned
+                        name = "Office Chair",
+                        price = java.math.BigDecimal("199.99"),
+                        quantity = 25,
+                        cost = java.math.BigDecimal("120.00"),
+                        shelfLocation = "Furniture-C1"
+                    ),
+                    Product(
+                        id = 0, // Will be auto-assigned
+                        name = "Desk Lamp",
+                        price = java.math.BigDecimal("45.99"),
+                        quantity = 30,
+                        cost = java.math.BigDecimal("25.00"),
+                        shelfLocation = "Lighting-D1"
+                    ),
+                    Product(
+                        id = 0, // Will be auto-assigned
+                        name = "Notebook Set",
+                        price = java.math.BigDecimal("12.99"),
+                        quantity = 100,
+                        cost = java.math.BigDecimal("6.00"),
+                        shelfLocation = "Stationery-E1"
+                    )
+                )
+
+                println("DEBUG: Creating ${sampleProducts.size} sample products...")
+                for (product in sampleProducts) {
+                    val result = productRepository.createProduct(product)
+                    if (result.isSuccess) {
+                        println("DEBUG: Created sample product: ${product.name}")
+                    } else {
+                        println("DEBUG: Failed to create sample product: ${product.name} - ${result.exceptionOrNull()?.message}")
+                    }
+                }
+                
+                // Reload products after creating samples
+                loadProducts()
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to create sample products: ${e.message}"
+                println("DEBUG: Exception creating sample products: ${e.message}")
             } finally {
                 _isLoading.value = false
             }

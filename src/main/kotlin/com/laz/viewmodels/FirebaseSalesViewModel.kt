@@ -6,6 +6,7 @@ import com.laz.models.Sale
 import com.laz.models.Product
 import com.laz.models.User
 import com.laz.repositories.FirebaseProductRepository
+import com.laz.repositories.FirebaseSalesRepository
 import com.laz.firebase.FirebaseDatabaseService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,9 @@ import java.util.*
  */
 class FirebaseSalesViewModel(
     private val firebaseProductRepository: FirebaseProductRepository,
-    private val firebaseDatabaseService: FirebaseDatabaseService
+    private val firebaseSalesRepository: FirebaseSalesRepository,
+    private val firebaseDatabaseService: FirebaseDatabaseService,
+    private val currentUser: StateFlow<User?>
 ) : ViewModel() {
     
     private val _sales = MutableStateFlow<List<Sale>>(emptyList())
@@ -43,28 +46,43 @@ class FirebaseSalesViewModel(
     
     init {
         loadAllSales()
+        // Start collecting sales from repository
+        viewModelScope.launch {
+            firebaseSalesRepository.getAllSales().collect { salesList ->
+                _sales.value = salesList
+                updateSalesStatistics(salesList)
+            }
+        }
     }
     
     /**
      * Load all sales from Firebase and update UI state
      */
-    private fun loadAllSales() {
+    fun loadAllSales() {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                firebaseDatabaseService.getAllSales().collect { salesList ->
-                    _sales.value = salesList
-                    _salesCount.value = salesList.size
-                    _totalSalesAmount.value = salesList.sumOf { sale ->
-                        sale.productPrice.replace("JOD ", "").toDoubleOrNull() ?: 0.0 
-                    }
-                }
+                // Data will be loaded via the Flow in init block
+                _errorMessage.value = null
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to load sales: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+    
+    /**
+     * Update sales statistics from loaded sales data
+     */
+    private fun updateSalesStatistics(salesList: List<Sale>) {
+        _salesCount.value = salesList.filter { !it.isReturned }.size
+        _totalSalesAmount.value = salesList
+            .filter { !it.isReturned }
+            .sumOf { sale ->
+                val priceString = sale.productPrice.replace("JOD ", "").replace(",", "")
+                (priceString.toDoubleOrNull() ?: 0.0) * sale.quantity
+            }
     }
 
     /**
@@ -85,34 +103,44 @@ class FirebaseSalesViewModel(
             
             // Update product quantity
             val updatedProduct = currentProduct.copy(quantity = currentProduct.quantity - quantity)
+            println("DEBUG: Updating product ${currentProduct.name} from quantity ${currentProduct.quantity} to ${updatedProduct.quantity}")
             val updateResult = firebaseProductRepository.updateProduct(updatedProduct)
             
             if (updateResult.isSuccess) {
+                println("DEBUG: Product quantity update successful for product ID: ${updatedProduct.id}")
+                // Force refresh of product data to ensure UI updates
+                try {
+                    firebaseProductRepository.getProductById(product.id)
+                } catch (e: Exception) {
+                    println("DEBUG: Error refreshing product data: ${e.message}")
+                }
                 // Create and save sale record to Firebase
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                // Get current user information
+                val user = currentUser.value
                 val sale = Sale(
                     productId = product.id,
                     productName = product.name,
-                    productPrice = "JOD ${product.price}",
+                    productPrice = product.price.toDouble().toString(),
                     quantity = quantity,
-                    userId = 0L, // Will be set by Firebase
-                    userName = cashier,
+                    userId = user?.id ?: 0L,
+                    userName = user?.username ?: cashier,
                     date = dateFormat.format(Date()),
                     isReturned = false
                 )
                 
-                // Save sale to Firebase
-                val saleId = firebaseDatabaseService.createSale(sale)
-                if (saleId.isNotEmpty()) {
-                    // Refresh sales data to update UI
-                    loadAllSales()
+                // Save sale to Firebase using repository
+                val saleResult = firebaseSalesRepository.createSale(sale)
+                if (saleResult.isSuccess) {
+                    // Sale saved successfully - data will be updated via Flow
                     true
                 } else {
-                    _errorMessage.value = "Failed to save sale record"
+                    _errorMessage.value = "Failed to save sale record: ${saleResult.exceptionOrNull()?.message}"
                     false
                 }
             } else {
-                _errorMessage.value = "Failed to process sale: ${updateResult.exceptionOrNull()?.message}"
+                println("DEBUG: Product quantity update failed: ${updateResult.exceptionOrNull()?.message}")
+                _errorMessage.value = "Failed to update product inventory: ${updateResult.exceptionOrNull()?.message}"
                 false
             }
         } catch (e: Exception) {
@@ -134,18 +162,12 @@ class FirebaseSalesViewModel(
      * Get recent sales from Firebase
      */
     suspend fun getRecentSales(days: Int): List<Sale> {
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val cutoffDate = Calendar.getInstance().apply {
-            add(Calendar.DAY_OF_YEAR, -days)
-        }.time
-        
-        return _sales.value.filter { sale ->
-            try {
-                val saleDate = dateFormat.parse(sale.date)
-                saleDate != null && saleDate.after(cutoffDate)
-            } catch (e: Exception) {
-                false
-            }
+        return try {
+            val result = firebaseSalesRepository.getRecentSales(days)
+            result.getOrElse { emptyList() }
+        } catch (e: Exception) {
+            _errorMessage.value = "Failed to get recent sales: ${e.message}"
+            emptyList()
         }
     }
 
@@ -161,9 +183,13 @@ class FirebaseSalesViewModel(
      */
     suspend fun updateSale(sale: Sale): Boolean {
         return try {
-            // Firebase doesn't have direct update, so we would need to implement this
-            // For now, return true as this functionality isn't commonly used
-            true
+            val result = firebaseSalesRepository.updateSale(sale)
+            if (result.isSuccess) {
+                true
+            } else {
+                _errorMessage.value = "Failed to update sale: ${result.exceptionOrNull()?.message}"
+                false
+            }
         } catch (e: Exception) {
             _errorMessage.value = "Failed to update sale: ${e.message}"
             false

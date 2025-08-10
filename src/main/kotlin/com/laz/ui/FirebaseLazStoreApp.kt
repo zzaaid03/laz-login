@@ -191,7 +191,8 @@ fun FirebaseLazStoreApp(
 
                 EmployeeProductManagementScreen(
                     productViewModel = productViewModel,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    userRole = authState.user?.role?.name
                 )
             }
 
