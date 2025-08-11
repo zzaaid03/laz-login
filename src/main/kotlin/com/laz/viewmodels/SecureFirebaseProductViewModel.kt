@@ -66,6 +66,15 @@ class SecureFirebaseProductViewModel(
                     val products = result.getOrNull() ?: emptyList()
                     println("DEBUG: Successfully loaded ${products.size} products from Firebase")
                     _products.value = products
+<<<<<<< Updated upstream
+                    
+                    // If no products exist, create sample products (for initial setup)
+                    if (products.isEmpty()) {
+                        println("DEBUG: No products found, creating sample products...")
+                        createSampleProductsForSetup()
+                    }
+=======
+>>>>>>> Stashed changes
                 } else {
                     val errorMsg = "Failed to load products: ${result.exceptionOrNull()?.message}"
                     println("DEBUG: $errorMsg")
@@ -91,6 +100,17 @@ class SecureFirebaseProductViewModel(
             return
         }
 
+<<<<<<< Updated upstream
+        createSampleProductsForSetup()
+    }
+
+    /**
+     * Create sample products for initial setup (no permission check)
+     * Used when database is empty to provide initial data
+     */
+    private fun createSampleProductsForSetup() {
+=======
+>>>>>>> Stashed changes
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -137,7 +157,11 @@ class SecureFirebaseProductViewModel(
                     )
                 )
 
+<<<<<<< Updated upstream
+                println("DEBUG: Creating ${sampleProducts.size} sample products for initial setup...")
+=======
                 println("DEBUG: Creating ${sampleProducts.size} sample products...")
+>>>>>>> Stashed changes
                 for (product in sampleProducts) {
                     val result = productRepository.createProduct(product)
                     if (result.isSuccess) {

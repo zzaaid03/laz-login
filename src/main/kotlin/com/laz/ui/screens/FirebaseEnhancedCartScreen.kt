@@ -89,6 +89,7 @@ fun EnhancedCartHeader(
 @Composable
 fun FirebaseEnhancedCartScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToPayment: (List<CartItemWithProductInfo>, BigDecimal) -> Unit = { _, _ -> },
     cartViewModel: SecureFirebaseCartViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
@@ -97,7 +98,6 @@ fun FirebaseEnhancedCartScreen(
     val isLoading by cartViewModel.isLoading.collectAsState()
     val errorMessage by cartViewModel.errorMessage.collectAsState()
     
-    var showCheckoutDialog by remember { mutableStateOf(false) }
     var showRemoveDialog by remember { mutableStateOf(false) }
     var itemToRemove by remember { mutableStateOf<CartItem?>(null) }
     
@@ -239,7 +239,10 @@ fun FirebaseEnhancedCartScreen(
                                 }
                                 
                                 Button(
-                                    onClick = { showCheckoutDialog = true },
+                                    onClick = { 
+                                        // Navigate to payment screen instead of showing dialog
+                                        onNavigateToPayment(cartItemsWithProducts, cartTotal)
+                                    },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary
@@ -251,7 +254,7 @@ fun FirebaseEnhancedCartScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Proceed to Checkout")
+                                    Text("Proceed to Payment")
                                 }
                             }
                         }
@@ -261,22 +264,7 @@ fun FirebaseEnhancedCartScreen(
         }
     }
 
-    // Checkout Dialog
-    if (showCheckoutDialog) {
-        CheckoutDialog(
-            cartItems = cartItemsWithProducts,
-            total = cartTotal,
-            onDismiss = { showCheckoutDialog = false },
-            onConfirm = {
-                scope.launch {
-                    // Process checkout - in real implementation, this would handle payment
-                    cartViewModel.clearCart()
-                    showCheckoutDialog = false
-                    onNavigateBack() // Return to previous screen after checkout
-                }
-            }
-        )
-    }
+    // Checkout dialog removed - now navigates to payment screen
 
     // Remove Item Dialog
     itemToRemove?.let { cartItem ->
