@@ -142,7 +142,9 @@ fun FirebaseLazStoreApp(
                             }
                         },
                         onNavigateToProductManagement = { navController.navigate(Screen.ProductManagement.route) },
-                        onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) }
+                        onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) },
+                        onNavigateToReturnsProcessing = { navController.navigate(Screen.ReturnsProcessing.route) },
+                        onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) }
                     )
                 } else {
                     // User is null, navigate to login
