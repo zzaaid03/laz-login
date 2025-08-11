@@ -31,6 +31,7 @@ fun EmployeeDashboardScreen(
     onNavigateToProductManagement: () -> Unit = {},
     onNavigateToSalesProcessing: () -> Unit = {},
     onNavigateToReturnsProcessing: () -> Unit = {},
+    onNavigateToSalesOverview: () -> Unit = {},
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
@@ -210,13 +211,12 @@ fun EmployeeDashboardScreen(
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToReturnsProcessing() }
                         
-                        // Placeholder for future feature
                         ActionCard(
                             title = "Reports",
                             description = "View sales reports",
                             icon = Icons.Default.Assessment,
                             modifier = Modifier.weight(1f)
-                        ) { /* Navigate to reports */ }
+                        ) { onNavigateToSalesOverview() }
                     }
                 }
             }
