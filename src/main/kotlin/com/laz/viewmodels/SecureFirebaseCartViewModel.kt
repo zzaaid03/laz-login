@@ -72,13 +72,18 @@ class SecureFirebaseCartViewModel(
             _permissionError.value = null
             
             try {
+                println("DEBUG: Loading cart for user: ${user.username} (ID: ${user.id})")
                 val result = cartRepository.getCartItemsByUserId(user.id)
                 if (result.isSuccess) {
-                    _cartItems.value = result.getOrNull() ?: emptyList()
+                    val cartItems = result.getOrNull() ?: emptyList()
+                    println("DEBUG: Cart loaded successfully with ${cartItems.size} items for user ${user.id}")
+                    _cartItems.value = cartItems
                 } else {
+                    println("DEBUG: Failed to load cart for user ${user.id}: ${result.exceptionOrNull()?.message}")
                     _errorMessage.value = "Failed to load cart: ${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
+                println("DEBUG: Exception loading cart for user ${user.id}: ${e.message}")
                 _errorMessage.value = "Failed to load cart: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -237,6 +242,8 @@ class SecureFirebaseCartViewModel(
             return
         }
 
+        println("DEBUG: Removing cart item with ID: $cartItemId for user: $userId")
+
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
@@ -244,13 +251,27 @@ class SecureFirebaseCartViewModel(
             _operationSuccess.value = null
             
             try {
-                val result = cartRepository.removeCartItem(userId, cartItemId)
+                // Find the cart item to get the productId
+                val cartItem = _cartItems.value.find { it.id == cartItemId }
+                if (cartItem == null) {
+                    println("DEBUG: Cart item not found with ID: $cartItemId")
+                    _errorMessage.value = "Cart item not found"
+                    return@launch
+                }
+                
+                println("DEBUG: Calling cartRepository.removeCartItem($userId, ${cartItem.productId})")
+                val result = cartRepository.removeCartItem(userId, cartItem.productId)
                 if (result.isSuccess) {
+                    println("DEBUG: Cart item removed successfully, reloading cart items")
                     _operationSuccess.value = "Item removed from cart"
+                    // Reload cart items to reflect the change
+                    loadCartItems()
                 } else {
+                    println("DEBUG: Failed to remove cart item: ${result.exceptionOrNull()?.message}")
                     _errorMessage.value = "Failed to remove item: ${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
+                println("DEBUG: Exception removing cart item: ${e.message}")
                 _errorMessage.value = "Error removing item: ${e.message}"
             } finally {
                 _isLoading.value = false

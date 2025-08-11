@@ -134,6 +134,11 @@ class FirebaseAuthViewModel(
                                 user = user,
                                 userRole = role
                             )
+                            
+                            // CRITICAL: Force refresh FirebaseServices.currentUser after user creation
+                            // This ensures product ViewModels can immediately access the new user
+                            println("DEBUG: Refreshing FirebaseServices.currentUser after signup...")
+                            com.laz.viewmodels.FirebaseServices.refreshCurrentUser()
                         } else {
                             _errorMessage.value = "Failed to create user profile: ${userResult.exceptionOrNull()?.message}"
                         }

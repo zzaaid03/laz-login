@@ -49,6 +49,38 @@ object PermissionManager {
     }
     
     // ========================================
+    // ORDER MANAGEMENT PERMISSIONS
+    // ========================================
+    
+    /**
+     * Can create orders (Customer only)
+     */
+    fun canCreateOrders(user: User?): Boolean {
+        return user?.role == UserRole.CUSTOMER
+    }
+    
+    /**
+     * Can manage orders (Admin and Employee only)
+     */
+    fun canManageOrders(user: User?): Boolean {
+        return user?.role in listOf(UserRole.ADMIN, UserRole.EMPLOYEE)
+    }
+    
+    /**
+     * Can view all orders (Admin and Employee only)
+     */
+    fun canViewAllOrders(user: User?): Boolean {
+        return user?.role in listOf(UserRole.ADMIN, UserRole.EMPLOYEE)
+    }
+    
+    /**
+     * Can update order status (Admin and Employee only)
+     */
+    fun canUpdateOrderStatus(user: User?): Boolean {
+        return user?.role in listOf(UserRole.ADMIN, UserRole.EMPLOYEE)
+    }
+    
+    // ========================================
     // USER MANAGEMENT PERMISSIONS
     // ========================================
     

@@ -15,7 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.laz.models.Sale
+import com.laz.models.Order
 import com.laz.models.User
 import com.laz.viewmodels.*
 import kotlinx.coroutines.launch
@@ -28,19 +28,18 @@ import java.util.*
 fun FirebaseOrderHistoryScreen(
     currentUser: User,
     onNavigateBack: () -> Unit,
-    salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
+    ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
     // Collect StateFlows as State
-    val userSales by salesViewModel.userSales.collectAsState()
-    val isLoading by salesViewModel.isLoading.collectAsState()
-    val errorMessage by salesViewModel.errorMessage.collectAsState()
+    val orders by ordersViewModel.orders.collectAsState()
+    val isLoading by ordersViewModel.isLoading.collectAsState()
+    val errorMessage by ordersViewModel.errorMessage.collectAsState()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(currentUser.id) {
         scope.launch {
-            // In a full Firebase implementation, this would fetch user-specific sales
-            // For now, we'll use the general sales list filtered by user
-            salesViewModel.refresh()
+            // Load user's orders
+            ordersViewModel.loadOrders()
         }
     }
 
@@ -84,7 +83,7 @@ fun FirebaseOrderHistoryScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
-            } else if (userSales.isEmpty()) {
+            } else if (orders.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -114,8 +113,8 @@ fun FirebaseOrderHistoryScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(userSales.filter { it.userId == currentUser.id }) { sale ->
-                        OrderItem(sale = sale)
+                    items(orders) { order ->
+                        OrderHistoryItem(order = order)
                     }
                 }
             }
@@ -124,96 +123,114 @@ fun FirebaseOrderHistoryScreen(
 }
 
 @Composable
-fun OrderItem(
-    sale: Sale,
+fun OrderHistoryItem(
+    order: Order,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
+            // Order Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Text(
+                    text = "Order #${order.id}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                // Order Status Chip
+                Surface(
+                    color = when (order.status.name) {
+                        "PENDING" -> MaterialTheme.colorScheme.secondaryContainer
+                        "CONFIRMED" -> MaterialTheme.colorScheme.primaryContainer
+                        "SHIPPED" -> MaterialTheme.colorScheme.tertiaryContainer
+                        "DELIVERED" -> MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        "CANCELLED" -> MaterialTheme.colorScheme.errorContainer
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    shape = RoundedCornerShape(16.dp)
+                ) {
                     Text(
-                        text = "Order #${sale.id}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = sale.date,
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        text = order.status.name,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = when (order.status.name) {
+                            "PENDING" -> MaterialTheme.colorScheme.onSecondaryContainer
+                            "CONFIRMED" -> MaterialTheme.colorScheme.onPrimaryContainer
+                            "SHIPPED" -> MaterialTheme.colorScheme.onTertiaryContainer
+                            "DELIVERED" -> MaterialTheme.colorScheme.primary
+                            "CANCELLED" -> MaterialTheme.colorScheme.onErrorContainer
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                 }
-                Text(
-                    text = NumberFormat.getCurrencyInstance().format(
-                        try {
-                            sale.productPrice.toDoubleOrNull() ?: 0.0
-                        } catch (e: Exception) {
-                            0.0
-                        }
-                    ),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
             }
             
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            Spacer(modifier = Modifier.height(8.dp))
             
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+            // Order Details
+            Text(
+                text = "Date: ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(order.orderDate))}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            
+            Text(
+                text = "Total: JOD ${NumberFormat.getInstance().format(order.totalAmount)}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            Text(
+                text = "Payment: ${order.paymentMethod}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            
+            // Order Items Summary
+            if (order.items.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Items (${order.items.size}):",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+                
+                order.items.take(3).forEach { item ->
                     Text(
-                        text = sale.productName,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Quantity: ${sale.quantity}",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        text = "• ${item.productName} (${item.quantity}x)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
-                if (sale.isReturned) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.errorContainer
-                    ) {
-                        Text(
-                            text = "Returned",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Text(
-                            text = "Completed",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
+                
+                if (order.items.size > 3) {
+                    Text(
+                        text = "• ... and ${order.items.size - 3} more items",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
                 }
             }
         }
     }
 }
+
+

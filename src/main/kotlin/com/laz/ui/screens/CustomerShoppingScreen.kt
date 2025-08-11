@@ -192,7 +192,7 @@ fun CustomerShoppingScreen(
             }
             
             // Error Messages
-            errorMessage?.let { error ->
+             errorMessage?.let { error ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)

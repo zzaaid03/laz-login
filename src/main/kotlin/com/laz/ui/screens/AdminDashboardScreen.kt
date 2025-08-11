@@ -42,10 +42,16 @@ fun AdminDashboardScreen(
     onNavigateToSalesProcessing: () -> Unit,
     onNavigateToReturnsProcessing: () -> Unit,
     onNavigateToSalesOverview: () -> Unit,
+    onNavigateToOrderManagement: () -> Unit,
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     userViewModel: SecureFirebaseUserViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.viewModelFactory),
+<<<<<<< Updated upstream
+    returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.viewModelFactory),
+    ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
+=======
     returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.viewModelFactory)
+>>>>>>> Stashed changes
 ) {
     // Collect state from ViewModels
     val userStats by userViewModel.getUserStatistics().collectAsState()
@@ -61,12 +67,25 @@ fun AdminDashboardScreen(
     val salesErrorMessage by salesViewModel.errorMessage.collectAsState()
     val returnsErrorMessage by returnsViewModel.errorMessage.collectAsState()
     
+<<<<<<< Updated upstream
+    // Collect orders data
+    val orders by ordersViewModel.orders.collectAsState()
+    val ordersCount by ordersViewModel.ordersCount.collectAsState()
+    val totalOrdersAmount by ordersViewModel.totalOrdersAmount.collectAsState()
+    val ordersErrorMessage by ordersViewModel.errorMessage.collectAsState()
+    
+=======
+>>>>>>> Stashed changes
     // Load data on screen start
     LaunchedEffect(Unit) {
         userViewModel.loadUsers()
         productViewModel.loadProducts()
         salesViewModel.loadAllSales()
         returnsViewModel.loadAllReturns()
+<<<<<<< Updated upstream
+        ordersViewModel.loadOrders()
+=======
+>>>>>>> Stashed changes
     }
     
     // Calculate statistics from loaded data
@@ -254,6 +273,30 @@ fun AdminDashboardScreen(
                 }
             }
             
+            // Third Row Statistics - Orders
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StatCard(
+                        title = "Total Orders",
+                        value = ordersCount.toString(),
+                        icon = Icons.Default.Assignment,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f)
+                    ) { onNavigateToOrderManagement() }
+                    
+                    StatCard(
+                        title = "Orders Value",
+                        value = "JOD ${String.format("%.2f", totalOrdersAmount)}",
+                        icon = Icons.Default.MonetizationOn,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.weight(1f)
+                    ) { onNavigateToOrderManagement() }
+                }
+            }
+            
             // Admin Actions Section
             item {
                 Text(
@@ -317,6 +360,167 @@ fun AdminDashboardScreen(
                             icon = Icons.Default.Analytics,
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToSalesOverview() }
+                        
+                        ActionCard(
+                            title = "Order Management",
+                            description = "Manage customer orders and fulfillment",
+                            icon = Icons.Default.Assignment,
+                            modifier = Modifier.weight(1f)
+                        ) { onNavigateToOrderManagement() }
+                    }
+                }
+            }
+            
+            // Recent Sales Activity Section
+            item {
+                Text(
+                    "Recent Sales Activity",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            
+            // Recent Sales List
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        if (sales.isEmpty()) {
+                            Text(
+                                "No sales recorded yet",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            // Show last 3 sales
+                            sales.take(3).forEach { sale ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            "Sale #${sale.id.toString().take(8)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            sale.date.take(16).replace("T", " "),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        sale.productPrice,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                if (sale != sales.take(3).last()) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(vertical = 4.dp),
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    )
+                                }
+                            }
+                            
+                            if (sales.size > 3) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(
+                                    onClick = { onNavigateToSalesOverview() },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("View All Sales (${sales.size})")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Recent Orders Activity Section
+            item {
+                Text(
+                    "Recent Orders Activity",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            
+            // Recent Orders List
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        if (orders.isEmpty()) {
+                            Text(
+                                "No orders recorded yet",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            // Show last 3 orders
+                            orders.take(3).forEach { order ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            "Order #${order.id}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            "${order.customerUsername} • ${order.status.name}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        "JOD ${String.format("%.2f", order.totalAmount)}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                if (order != orders.take(3).last()) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(vertical = 4.dp),
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    )
+                                }
+                            }
+                            
+                            if (orders.size > 3) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(
+                                    onClick = { onNavigateToOrderManagement() },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("View All Orders (${orders.size})")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -447,6 +651,25 @@ fun AdminDashboardScreen(
                     }
                 }
             }
+<<<<<<< Updated upstream
+            
+            ordersErrorMessage?.let { error ->
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            text = "Orders Error: $error",
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+=======
+>>>>>>> Stashed changes
         }
     }
 }

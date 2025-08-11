@@ -21,7 +21,9 @@ class FirebaseProductRepository {
      */
     suspend fun createProduct(product: Product): Result<Product> {
         return try {
+            println("DEBUG: Creating product: ${product.name}")
             val productId = getNextProductId()
+            println("DEBUG: Generated product ID: $productId")
             val productWithId = product.copy(id = productId)
             
             val productMap = mapOf(
@@ -34,9 +36,15 @@ class FirebaseProductRepository {
                 "createdAt" to System.currentTimeMillis()
             )
             
+            println("DEBUG: Product data to save: $productMap")
+            println("DEBUG: Saving to Firebase path: ${productsRef.child(productId.toString())}")
+            
             productsRef.child(productId.toString()).setValue(productMap).await()
+            println("DEBUG: Successfully saved product: ${productWithId.name} with ID: $productId")
             Result.success(productWithId)
         } catch (e: Exception) {
+            println("DEBUG: Exception creating product: ${e.message}")
+            println("DEBUG: Exception stack trace: ${e.stackTrace.joinToString("\n")}")
             Result.failure(e)
         }
     }
@@ -60,6 +68,30 @@ class FirebaseProductRepository {
     suspend fun getAllProducts(): Result<List<Product>> {
         return try {
             println("DEBUG: Fetching products from Firebase...")
+<<<<<<< Updated upstream
+            println("DEBUG: Firebase database URL: ${database.reference.toString()}")
+            println("DEBUG: Products reference path: ${productsRef.toString()}")
+            
+            val snapshot = productsRef.get().await()
+            println("DEBUG: Firebase snapshot exists: ${snapshot.exists()}")
+            println("DEBUG: Firebase snapshot children count: ${snapshot.childrenCount}")
+            println("DEBUG: Firebase snapshot value: ${snapshot.value}")
+            
+            if (!snapshot.exists()) {
+                println("DEBUG: No products collection found in Firebase - this is normal for first run")
+                return Result.success(emptyList())
+            }
+            
+            val products = snapshot.children.mapNotNull { childSnapshot ->
+                println("DEBUG: Processing child snapshot: ${childSnapshot.key}")
+                println("DEBUG: Child snapshot value: ${childSnapshot.value}")
+                val product = childSnapshot.toProduct()
+                if (product != null) {
+                    println("DEBUG: Successfully loaded product: ${product.name} (ID: ${product.id})")
+                } else {
+                    println("DEBUG: Failed to parse product from snapshot: ${childSnapshot.key}")
+                    println("DEBUG: Raw child data: ${childSnapshot.value}")
+=======
             val snapshot = productsRef.get().await()
             println("DEBUG: Firebase snapshot exists: ${snapshot.exists()}")
             println("DEBUG: Firebase snapshot children count: ${snapshot.childrenCount}")
@@ -70,6 +102,7 @@ class FirebaseProductRepository {
                     println("DEBUG: Loaded product: ${product.name} (ID: ${product.id})")
                 } else {
                     println("DEBUG: Failed to parse product from snapshot: ${childSnapshot.key}")
+>>>>>>> Stashed changes
                 }
                 product
             }
@@ -78,6 +111,10 @@ class FirebaseProductRepository {
             Result.success(products)
         } catch (e: Exception) {
             println("DEBUG: Exception in getAllProducts: ${e.message}")
+<<<<<<< Updated upstream
+            println("DEBUG: Exception stack trace: ${e.stackTrace.joinToString("\n")}")
+=======
+>>>>>>> Stashed changes
             Result.failure(e)
         }
     }
@@ -277,6 +314,43 @@ class FirebaseProductRepository {
             maxId + 1
         } catch (e: Exception) {
             System.currentTimeMillis() // Fallback to timestamp
+        }
+    }
+
+    /**
+     * Reduce product stock when order is placed
+     */
+    suspend fun reduceProductStock(productId: Long, quantity: Int): Result<Unit> {
+        return try {
+            println("DEBUG: Reducing stock for product $productId by $quantity")
+            
+            // Get current product data
+            val snapshot = productsRef.child(productId.toString()).get().await()
+            val product = snapshot.toProduct()
+            
+            if (product == null) {
+                println("DEBUG: Product $productId not found")
+                return Result.failure(Exception("Product not found"))
+            }
+            
+            // Check if sufficient stock available
+            if (product.quantity < quantity) {
+                println("DEBUG: Insufficient stock for product $productId. Available: ${product.quantity}, Requested: $quantity")
+                return Result.failure(Exception("Insufficient stock. Available: ${product.quantity}, Requested: $quantity"))
+            }
+            
+            // Calculate new quantity
+            val newQuantity = product.quantity - quantity
+            println("DEBUG: Updating product $productId stock from ${product.quantity} to $newQuantity")
+            
+            // Update the quantity in Firebase
+            productsRef.child(productId.toString()).child("quantity").setValue(newQuantity).await()
+            
+            println("DEBUG: Successfully reduced stock for product $productId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("DEBUG: Exception reducing stock for product $productId: ${e.message}")
+            Result.failure(e)
         }
     }
 

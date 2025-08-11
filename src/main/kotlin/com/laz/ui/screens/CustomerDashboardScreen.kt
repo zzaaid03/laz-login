@@ -80,12 +80,18 @@ fun CustomerDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Cart badge
+                        // Cart badge (only show badge if items > 0)
                         BadgedBox(
                             badge = {
                                 if (cartItemCount > 0) {
-                                    Badge {
-                                        Text(cartItemCount.toString())
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error
+                                    ) {
+                                        Text(
+                                            text = cartItemCount.toString(),
+                                            color = MaterialTheme.colorScheme.onError,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
                                     }
                                 }
                             }
@@ -93,8 +99,8 @@ fun CustomerDashboardScreen(
                             IconButton(onClick = onNavigateToCart) {
                                 Icon(
                                     Icons.Default.ShoppingCart,
-                                    contentDescription = "Cart",
-                                    tint = MaterialTheme.colorScheme.primary
+                                    contentDescription = if (cartItemCount > 0) "Cart ($cartItemCount items)" else "Cart (empty)",
+                                    tint = if (cartItemCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -159,12 +165,12 @@ fun CustomerDashboardScreen(
                     ) { onNavigateToShopping() }
                     
                     StatCard(
-                        title = "Cart Items",
-                        value = cartItemCount.toString(),
-                        icon = Icons.Default.ShoppingCart,
+                        title = "Total Products",
+                        value = totalProducts.toString(),
+                        icon = Icons.Default.Inventory,
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
-                    ) { onNavigateToCart() }
+                    ) { onNavigateToShopping() }
                 }
             }
             
@@ -176,7 +182,7 @@ fun CustomerDashboardScreen(
                 ) {
                     StatCard(
                         title = "Cart Total",
-                        value = NumberFormat.getCurrencyInstance(Locale.US).format(cartTotal),
+                        value = "JOD %.2f".format(cartTotal),
                         icon = Icons.Default.AttachMoney,
                         color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
@@ -219,11 +225,11 @@ fun CustomerDashboardScreen(
                         ) { onNavigateToShopping() }
                         
                         ActionCard(
-                            title = "My Cart",
-                            description = "Review and checkout items",
-                            icon = Icons.Default.ShoppingCart,
+                            title = "Order Tracking",
+                            description = "Track your order status",
+                            icon = Icons.Default.LocalShipping,
                             modifier = Modifier.weight(1f)
-                        ) { onNavigateToCart() }
+                        ) { onNavigateToOrderHistory() }
                     }
                     
                     Row(
@@ -257,79 +263,16 @@ fun CustomerDashboardScreen(
                         ) { onNavigateToChat() }
                         
                         ActionCard(
-                            title = "Manage Cart",
-                            description = "View, edit and checkout items",
-                            icon = Icons.Default.ShoppingCart,
+                            title = "Customer Support",
+                            description = "Get help and assistance",
+                            icon = Icons.Default.SupportAgent,
                             modifier = Modifier.weight(1f)
-                        ) { onNavigateToCart() }
+                        ) { onNavigateToChat() }
                     }
                 }
             }
             
-            // Quick Actions Section
-            item {
-                Text(
-                    "Quick Actions",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-            
-            // Quick Action Buttons
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { onNavigateToShopping() },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Icon(
-                            Icons.Default.ShoppingBag,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Start Shopping")
-                    }
-                    
-                    if (cartItemCount > 0) {
-                        Button(
-                            onClick = { onNavigateToCart() },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            )
-                        ) {
-                            Icon(
-                                Icons.Default.Payment,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Checkout")
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = { onNavigateToCart() },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                Icons.Default.ShoppingCart,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("View Cart")
-                        }
-                    }
-                }
-            }
+
             
             // Cart Summary (if items in cart)
             if (cartItemCount > 0) {

@@ -1,0 +1,46 @@
+package com.laz.models
+
+import java.math.BigDecimal
+
+/**
+ * Order Model
+ * Represents customer orders in the system
+ */
+data class Order(
+    val id: Long = 0,
+    val customerId: Long,
+    val customerUsername: String,
+    val items: List<OrderItem>,
+    val totalAmount: BigDecimal,
+    val status: OrderStatus,
+    val paymentMethod: String,
+    val shippingAddress: String,
+    val orderDate: Long = System.currentTimeMillis(),
+    val estimatedDelivery: Long? = null,
+    val trackingNumber: String? = null,
+    val notes: String? = null
+)
+
+/**
+ * Order Item - Individual product in an order
+ */
+data class OrderItem(
+    val productId: Long,
+    val productName: String,
+    val quantity: Int,
+    val unitPrice: BigDecimal,
+    val totalPrice: BigDecimal
+)
+
+/**
+ * Order Status Enum
+ */
+enum class OrderStatus(val displayName: String) {
+    PENDING("Pending Payment"),
+    CONFIRMED("Order Confirmed"),
+    PROCESSING("Processing"),
+    SHIPPED("Shipped"),
+    DELIVERED("Delivered"),
+    CANCELLED("Cancelled"),
+    RETURNED("Returned")
+}

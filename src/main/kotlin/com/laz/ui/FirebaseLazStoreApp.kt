@@ -15,6 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import com.laz.models.UserRole
 import com.laz.ui.screens.*
 import com.laz.viewmodels.*
+import java.math.BigDecimal
 
 /**
  * Firebase-integrated LAZ Store App
@@ -116,7 +117,8 @@ fun FirebaseLazStoreApp(
                         onNavigateToProductManagement = { navController.navigate(Screen.ProductManagement.route) },
                         onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) },
                         onNavigateToReturnsProcessing = { navController.navigate(Screen.ReturnsProcessing.route) },
-                        onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) }
+                        onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) },
+                        onNavigateToOrderManagement = { navController.navigate(Screen.OrderManagement.route) }
                     )
                 } else {
                     // User is null, navigate to login
@@ -267,6 +269,94 @@ fun FirebaseLazStoreApp(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
+            
+            // Enhanced Cart Screen - Shopping cart with checkout
+            composable(Screen.EnhancedCart.route) {
+                FirebaseEnhancedCartScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPayment = { cartItems, total ->
+                        // Navigate to payment with cart total
+                        navController.navigate("${Screen.Payment.route}/${total}")
+                    }
+                )
+            }
+            
+            // Payment Screen - Checkout and order creation
+            composable("${Screen.Payment.route}/{total}") { backStackEntry ->
+                val total = backStackEntry.arguments?.getString("total")?.toBigDecimalOrNull() ?: BigDecimal.ZERO
+                val currentUser = authState.user
+                
+                if (currentUser != null) {
+                    PaymentScreen(
+                        user = currentUser,
+                        cartTotal = total,
+                        onNavigateBack = { navController.popBackStack() },
+                        onPaymentSuccess = { order ->
+                            // Navigate to order tracking after successful payment
+                            navController.navigate(Screen.OrderTracking.route) {
+                                popUpTo(Screen.CustomerDashboard.route)
+                            }
+                        }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
+            
+            // Order Tracking Screen - Customer order status
+            composable(Screen.OrderTracking.route) {
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    OrderTrackingScreen(
+                        user = currentUser,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
+            
+            // Order History Screen - Customer order history
+            composable(Screen.OrderHistory.route) {
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    FirebaseOrderHistoryScreen(
+                        currentUser = currentUser,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
+            
+            // Order Management Screen - Admin order management
+            composable(Screen.OrderManagement.route) {
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    OrderManagementScreen(
+                        user = currentUser,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -285,11 +375,14 @@ sealed class Screen(val route: String) {
     object CustomerShopping : Screen("customer_shopping")
     object CartScreen : Screen("cart_screen")
     object EnhancedCart : Screen("enhanced_cart")
+    object Payment : Screen("payment")
+    object OrderTracking : Screen("order_tracking")
     object ProfileScreen : Screen("profile_screen")
     object SalesProcessing : Screen("sales_processing")
     object ReturnsProcessing : Screen("returns_processing")
     object SalesOverview : Screen("sales_overview")
     object UserManagement : Screen("user_management")
+    object OrderManagement : Screen("order_management")
     object OrderHistory : Screen("order_history")
     object Chat : Screen("chat")
 }

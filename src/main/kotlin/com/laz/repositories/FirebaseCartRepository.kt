@@ -24,7 +24,11 @@ class FirebaseCartRepository {
      */
     suspend fun addCartItem(cartItem: CartItem): Result<CartItem> {
         return try {
-            val cartItemId = "${cartItem.userId}_${cartItem.productId}"
+            // NEW: Use nested structure /cart/{userId}/{productId} for true isolation
+            val userCartRef = cartRef.child(cartItem.userId.toString())
+            val productRef = userCartRef.child(cartItem.productId.toString())
+            
+            println("DEBUG: Adding cart item for user: ${cartItem.userId}, product: ${cartItem.productId}")
             val cartItemMap = mapOf(
                 "userId" to cartItem.userId,
                 "productId" to cartItem.productId,
@@ -32,9 +36,14 @@ class FirebaseCartRepository {
                 "addedAt" to System.currentTimeMillis()
             )
             
-            cartRef.child(cartItemId).setValue(cartItemMap).await()
+            println("DEBUG: Cart item data to save: $cartItemMap")
+            println("DEBUG: Saving to Firebase path: ${productRef}")
+            
+            productRef.setValue(cartItemMap).await()
+            println("DEBUG: Successfully saved cart item for user ${cartItem.userId}")
             Result.success(cartItem)
         } catch (e: Exception) {
+            println("DEBUG: Exception adding cart item: ${e.message}")
             Result.failure(e)
         }
     }
@@ -44,13 +53,16 @@ class FirebaseCartRepository {
      */
     suspend fun updateCartItem(cartItem: CartItem): Result<CartItem> {
         return try {
-            val cartItemId = "${cartItem.userId}_${cartItem.productId}"
+            // NEW: Use nested structure /cart/{userId}/{productId} for true isolation
+            val userCartRef = cartRef.child(cartItem.userId.toString())
+            val productRef = userCartRef.child(cartItem.productId.toString())
+            
             val updates = mapOf(
                 "quantity" to cartItem.quantity,
                 "updatedAt" to System.currentTimeMillis()
             )
             
-            cartRef.child(cartItemId).updateChildren(updates).await()
+            productRef.updateChildren(updates).await()
             Result.success(cartItem)
         } catch (e: Exception) {
             Result.failure(e)
@@ -62,8 +74,11 @@ class FirebaseCartRepository {
      */
     suspend fun removeCartItem(userId: Long, productId: Long): Result<Unit> {
         return try {
-            val cartItemId = "${userId}_${productId}"
-            cartRef.child(cartItemId).removeValue().await()
+            // NEW: Use nested structure /cart/{userId}/{productId} for true isolation
+            val userCartRef = cartRef.child(userId.toString())
+            val productRef = userCartRef.child(productId.toString())
+            
+            productRef.removeValue().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -75,8 +90,11 @@ class FirebaseCartRepository {
      */
     suspend fun getCartItem(userId: Long, productId: Long): Result<CartItem?> {
         return try {
-            val cartItemId = "${userId}_${productId}"
-            val snapshot = cartRef.child(cartItemId).get().await()
+            // NEW: Use nested structure /cart/{userId}/{productId} for true isolation
+            val userCartRef = cartRef.child(userId.toString())
+            val productRef = userCartRef.child(productId.toString())
+            
+            val snapshot = productRef.get().await()
             val cartItem = snapshot.toCartItem()
             Result.success(cartItem)
         } catch (e: Exception) {
@@ -89,11 +107,29 @@ class FirebaseCartRepository {
      */
     suspend fun getCartItemsByUserId(userId: Long): Result<List<CartItem>> {
         return try {
-            val query = cartRef.orderByChild("userId").equalTo(userId.toDouble())
-            val snapshot = query.get().await()
-            val cartItems = snapshot.children.mapNotNull { it.toCartItem() }
+            println("DEBUG: Loading cart items for user ID: $userId")
+            // NEW: Use nested structure - get all items under /cart/{userId}/
+            val userCartRef = cartRef.child(userId.toString())
+            val snapshot = userCartRef.get().await()
+            println("DEBUG: User cart snapshot exists: ${snapshot.exists()}")
+            println("DEBUG: User cart snapshot children count: ${snapshot.childrenCount}")
+            
+            val cartItems = snapshot.children.mapNotNull { childSnapshot ->
+                println("DEBUG: Processing cart item snapshot: ${childSnapshot.key}")
+                println("DEBUG: Cart item data: ${childSnapshot.value}")
+                val cartItem = childSnapshot.toCartItem()
+                if (cartItem != null) {
+                    println("DEBUG: Loaded cart item for user ${cartItem.userId}, product ${cartItem.productId}, quantity ${cartItem.quantity}")
+                } else {
+                    println("DEBUG: Failed to parse cart item from snapshot: ${childSnapshot.key}")
+                }
+                cartItem
+            }
+            
+            println("DEBUG: Successfully loaded ${cartItems.size} cart items for user $userId")
             Result.success(cartItems)
         } catch (e: Exception) {
+            println("DEBUG: Exception loading cart items for user $userId: ${e.message}")
             Result.failure(e)
         }
     }
@@ -159,10 +195,9 @@ class FirebaseCartRepository {
      */
     suspend fun clearCart(userId: Long): Result<Unit> {
         return try {
-            val cartItems = getCartItemsByUserId(userId).getOrThrow()
-            cartItems.forEach { cartItem ->
-                removeCartItem(userId, cartItem.productId)
-            }
+            // NEW: Use nested structure - remove entire user cart node
+            val userCartRef = cartRef.child(userId.toString())
+            userCartRef.removeValue().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -175,8 +210,8 @@ class FirebaseCartRepository {
     fun observeCartItemsByUserId(userId: Long): Flow<List<CartItem>> = callbackFlow {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                // NEW: Use nested structure - only observe user's specific cart
                 val cartItems = snapshot.children.mapNotNull { it.toCartItem() }
-                    .filter { it.userId == userId }
                 trySend(cartItems)
             }
 
@@ -184,9 +219,11 @@ class FirebaseCartRepository {
                 close(error.toException())
             }
         }
-        
-        cartRef.addValueEventListener(listener)
-        awaitClose { cartRef.removeEventListener(listener) }
+
+        // NEW: Listen only to the specific user's cart node for true isolation
+        val userCartRef = cartRef.child(userId.toString())
+        userCartRef.addValueEventListener(listener)
+        awaitClose { userCartRef.removeEventListener(listener) }
     }
 
     /**
