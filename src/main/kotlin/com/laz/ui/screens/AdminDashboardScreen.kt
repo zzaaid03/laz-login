@@ -46,12 +46,8 @@ fun AdminDashboardScreen(
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     userViewModel: SecureFirebaseUserViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.viewModelFactory),
-<<<<<<< Updated upstream
     returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.viewModelFactory),
     ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
-=======
-    returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.viewModelFactory)
->>>>>>> Stashed changes
 ) {
     // Collect state from ViewModels
     val userStats by userViewModel.getUserStatistics().collectAsState()
@@ -67,25 +63,19 @@ fun AdminDashboardScreen(
     val salesErrorMessage by salesViewModel.errorMessage.collectAsState()
     val returnsErrorMessage by returnsViewModel.errorMessage.collectAsState()
     
-<<<<<<< Updated upstream
     // Collect orders data
     val orders by ordersViewModel.orders.collectAsState()
     val ordersCount by ordersViewModel.ordersCount.collectAsState()
     val totalOrdersAmount by ordersViewModel.totalOrdersAmount.collectAsState()
     val ordersErrorMessage by ordersViewModel.errorMessage.collectAsState()
     
-=======
->>>>>>> Stashed changes
     // Load data on screen start
     LaunchedEffect(Unit) {
         userViewModel.loadUsers()
         productViewModel.loadProducts()
         salesViewModel.loadAllSales()
         returnsViewModel.loadAllReturns()
-<<<<<<< Updated upstream
         ordersViewModel.loadOrders()
-=======
->>>>>>> Stashed changes
     }
     
     // Calculate statistics from loaded data
@@ -651,7 +641,6 @@ fun AdminDashboardScreen(
                     }
                 }
             }
-<<<<<<< Updated upstream
             
             ordersErrorMessage?.let { error ->
                 item {
@@ -668,8 +657,6 @@ fun AdminDashboardScreen(
                     }
                 }
             }
-=======
->>>>>>> Stashed changes
         }
     }
 }

@@ -7,10 +7,7 @@ import com.laz.repositories.FirebaseProductRepository
 import com.laz.repositories.FirebaseUserRepository
 import com.laz.repositories.FirebaseSalesRepository
 import com.laz.repositories.FirebaseReturnsRepository
-<<<<<<< Updated upstream
 import com.laz.repositories.FirebaseOrdersRepository
-=======
->>>>>>> Stashed changes
 import com.laz.services.FirebaseAuthService
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,10 +29,7 @@ class SecureFirebaseViewModelFactory(
     private val firebaseCartRepository: FirebaseCartRepository,
     private val firebaseSalesRepository: FirebaseSalesRepository,
     private val firebaseReturnsRepository: FirebaseReturnsRepository,
-<<<<<<< Updated upstream
     private val firebaseOrdersRepository: FirebaseOrdersRepository,
-=======
->>>>>>> Stashed changes
     private val currentUser: StateFlow<User?>
 ) : ViewModelProvider.Factory {
 
@@ -80,7 +74,6 @@ class SecureFirebaseViewModelFactory(
                 FirebaseReturnsViewModel(
                     firebaseProductRepository = firebaseProductRepository,
                     firebaseReturnsRepository = firebaseReturnsRepository
-<<<<<<< Updated upstream
                 ) as T
             }
             FirebaseOrdersViewModel::class.java -> {
@@ -88,8 +81,6 @@ class SecureFirebaseViewModelFactory(
                     ordersRepository = firebaseOrdersRepository,
                     productRepository = firebaseProductRepository,
                     currentUser = currentUser
-=======
->>>>>>> Stashed changes
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
@@ -108,10 +99,7 @@ object FirebaseServices {
     val cartRepository: FirebaseCartRepository by lazy { FirebaseCartRepository() }
     val salesRepository: FirebaseSalesRepository by lazy { FirebaseSalesRepository() }
     val returnsRepository: FirebaseReturnsRepository by lazy { FirebaseReturnsRepository() }
-<<<<<<< Updated upstream
     val ordersRepository: FirebaseOrdersRepository by lazy { FirebaseOrdersRepository() }
-=======
->>>>>>> Stashed changes
     val databaseService: com.laz.firebase.FirebaseDatabaseService by lazy { com.laz.firebase.FirebaseDatabaseService() }
     
     // Current user StateFlow that combines Firebase auth with User model data
@@ -192,10 +180,7 @@ object FirebaseServices {
             firebaseCartRepository = cartRepository,
             firebaseSalesRepository = salesRepository,
             firebaseReturnsRepository = returnsRepository,
-<<<<<<< Updated upstream
             firebaseOrdersRepository = ordersRepository,
-=======
->>>>>>> Stashed changes
             currentUser = currentUser
         )
     }

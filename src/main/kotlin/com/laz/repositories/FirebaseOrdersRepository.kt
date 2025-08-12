@@ -177,24 +177,31 @@ class FirebaseOrdersRepository {
     }
 
     /**
-     * Get orders count
+     * Get orders count (only completed orders - SHIPPED, DELIVERED)
      */
     suspend fun getOrdersCount(): Result<Int> {
         return try {
             val snapshot = ordersRef.get().await()
-            Result.success(snapshot.childrenCount.toInt())
+            val completedOrdersCount = snapshot.children.mapNotNull { it.toOrder() }
+                .count { order -> 
+                    order.status == OrderStatus.SHIPPED || order.status == OrderStatus.DELIVERED 
+                }
+            Result.success(completedOrdersCount)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     /**
-     * Get total orders amount
+     * Get total orders amount (only completed orders - SHIPPED, DELIVERED)
      */
     suspend fun getTotalOrdersAmount(): Result<BigDecimal> {
         return try {
             val snapshot = ordersRef.get().await()
             val total = snapshot.children.mapNotNull { it.toOrder() }
+                .filter { order -> 
+                    order.status == OrderStatus.SHIPPED || order.status == OrderStatus.DELIVERED 
+                }
                 .sumOf { it.totalAmount }
             Result.success(total)
         } catch (e: Exception) {

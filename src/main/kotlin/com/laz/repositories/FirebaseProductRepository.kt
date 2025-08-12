@@ -68,7 +68,6 @@ class FirebaseProductRepository {
     suspend fun getAllProducts(): Result<List<Product>> {
         return try {
             println("DEBUG: Fetching products from Firebase...")
-<<<<<<< Updated upstream
             println("DEBUG: Firebase database URL: ${database.reference.toString()}")
             println("DEBUG: Products reference path: ${productsRef.toString()}")
             
@@ -91,18 +90,6 @@ class FirebaseProductRepository {
                 } else {
                     println("DEBUG: Failed to parse product from snapshot: ${childSnapshot.key}")
                     println("DEBUG: Raw child data: ${childSnapshot.value}")
-=======
-            val snapshot = productsRef.get().await()
-            println("DEBUG: Firebase snapshot exists: ${snapshot.exists()}")
-            println("DEBUG: Firebase snapshot children count: ${snapshot.childrenCount}")
-            
-            val products = snapshot.children.mapNotNull { childSnapshot ->
-                val product = childSnapshot.toProduct()
-                if (product != null) {
-                    println("DEBUG: Loaded product: ${product.name} (ID: ${product.id})")
-                } else {
-                    println("DEBUG: Failed to parse product from snapshot: ${childSnapshot.key}")
->>>>>>> Stashed changes
                 }
                 product
             }
@@ -110,11 +97,7 @@ class FirebaseProductRepository {
             println("DEBUG: Successfully loaded ${products.size} products from Firebase")
             Result.success(products)
         } catch (e: Exception) {
-            println("DEBUG: Exception in getAllProducts: ${e.message}")
-<<<<<<< Updated upstream
-            println("DEBUG: Exception stack trace: ${e.stackTrace.joinToString("\n")}")
-=======
->>>>>>> Stashed changes
+            println("DEBUG: Error loading products: ${e.message}")
             Result.failure(e)
         }
     }

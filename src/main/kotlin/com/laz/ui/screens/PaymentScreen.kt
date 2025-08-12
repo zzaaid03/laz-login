@@ -35,6 +35,7 @@ fun PaymentScreen(
     onNavigateBack: () -> Unit,
     onPaymentSuccess: (Order) -> Unit,
     cartViewModel: SecureFirebaseCartViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
+    productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
     var paymentMethod by remember { mutableStateOf("Credit Card") }
@@ -60,22 +61,61 @@ fun PaymentScreen(
         cartViewModel.loadCartItems()
     }
     
-    // Combine cart items with product information
+    // Combine cart items with real product information from Firebase
     LaunchedEffect(cartItems) {
-        // For now, create mock CartItemWithProduct objects
-        // In a real implementation, you'd load product details from ProductRepository
-        cartItemsWithProducts = cartItems.map { cartItem ->
-            CartItemWithProduct(
-                cartItem = cartItem,
-                product = Product(
-                    id = cartItem.productId,
-                    name = "Product ${cartItem.productId}",
-                    quantity = 10,
-                    cost = BigDecimal("20.00"), // Mock cost
-                    price = BigDecimal("25.00"), // Mock price
-                    shelfLocation = "A1"
+        cartItemsWithProducts = cartItems.mapNotNull { cartItem ->
+            try {
+                // Load real product data from Firebase
+                val productResult = productViewModel.getProductById(cartItem.productId)
+                if (productResult.isSuccess) {
+                    val product = productResult.getOrNull()
+                    if (product != null) {
+                        CartItemWithProduct(
+                            cartItem = cartItem,
+                            product = product
+                        )
+                    } else {
+                        // Fallback for missing products
+                        CartItemWithProduct(
+                            cartItem = cartItem,
+                            product = Product(
+                                id = cartItem.productId,
+                                name = "Product Not Found",
+                                quantity = 0,
+                                cost = BigDecimal.ZERO,
+                                price = BigDecimal("25.00"), // Default fallback price
+                                shelfLocation = "Unknown"
+                            )
+                        )
+                    }
+                } else {
+                    // Fallback for failed product loading
+                    CartItemWithProduct(
+                        cartItem = cartItem,
+                        product = Product(
+                            id = cartItem.productId,
+                            name = "Loading Error",
+                            quantity = 0,
+                            cost = BigDecimal.ZERO,
+                            price = BigDecimal("25.00"), // Default fallback price
+                            shelfLocation = "Unknown"
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // Fallback for exceptions
+                CartItemWithProduct(
+                    cartItem = cartItem,
+                    product = Product(
+                        id = cartItem.productId,
+                        name = "Error Loading Product",
+                        quantity = 0,
+                        cost = BigDecimal.ZERO,
+                        price = BigDecimal("25.00"), // Default fallback price
+                        shelfLocation = "Unknown"
+                    )
                 )
-            )
+            }
         }
     }
 
