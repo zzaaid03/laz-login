@@ -103,7 +103,7 @@ class FirebaseCartRepository {
     }
 
     /**
-     * Get all cart items for a user
+     * Get all cart items for a user (one-time load)
      */
     suspend fun getCartItemsByUserId(userId: Long): Result<List<CartItem>> {
         return try {
@@ -131,6 +131,46 @@ class FirebaseCartRepository {
         } catch (e: Exception) {
             println("DEBUG: Exception loading cart items for user $userId: ${e.message}")
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Get real-time cart items flow for a user (Firebase real-time listener)
+     */
+    fun getCartItemsFlowByUserId(userId: Long): Flow<List<CartItem>> = callbackFlow {
+        println("DEBUG: Setting up real-time cart listener for user ID: $userId")
+        val userCartRef = cartRef.child(userId.toString())
+        
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                println("DEBUG: Real-time cart update received for user $userId")
+                println("DEBUG: Cart snapshot exists: ${snapshot.exists()}")
+                println("DEBUG: Cart snapshot children count: ${snapshot.childrenCount}")
+                
+                val cartItems = snapshot.children.mapNotNull { childSnapshot ->
+                    println("DEBUG: Processing real-time cart item: ${childSnapshot.key}")
+                    val cartItem = childSnapshot.toCartItem()
+                    if (cartItem != null) {
+                        println("DEBUG: Real-time cart item: user ${cartItem.userId}, product ${cartItem.productId}, quantity ${cartItem.quantity}")
+                    }
+                    cartItem
+                }
+                
+                println("DEBUG: Sending ${cartItems.size} cart items to flow for user $userId")
+                trySend(cartItems)
+            }
+            
+            override fun onCancelled(error: DatabaseError) {
+                println("DEBUG: Real-time cart listener cancelled for user $userId: ${error.message}")
+                close(error.toException())
+            }
+        }
+        
+        userCartRef.addValueEventListener(listener)
+        
+        awaitClose {
+            println("DEBUG: Removing real-time cart listener for user $userId")
+            userCartRef.removeEventListener(listener)
         }
     }
 

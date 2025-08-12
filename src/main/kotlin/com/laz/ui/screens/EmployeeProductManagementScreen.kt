@@ -116,7 +116,11 @@ private fun SimpleTabIndicator() {
 
 @Composable
 private fun ProductItem(
-    product: Product
+    product: Product,
+    userRole: String? = null,
+    onEditClick: (Product) -> Unit = {},
+    onDeleteClick: (Product) -> Unit = {},
+    onInventoryClick: (Product) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -175,18 +179,44 @@ private fun ProductItem(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Read-only indicator
+            // Role-based action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "View Only",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(8.dp)
-                )
+                if (userRole == "ADMIN") {
+                    // Admin can edit, delete, and update inventory
+                    IconButton(onClick = { onInventoryClick(product) }) {
+                        Icon(
+                            imageVector = Icons.Default.Inventory,
+                            contentDescription = "Update Inventory",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = { onEditClick(product) }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Product",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = { onDeleteClick(product) }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Product",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                } else {
+                    // Employee has read-only access
+                    Text(
+                        text = "View Only",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
             }
         }
     }
@@ -872,42 +902,25 @@ fun EmployeeProductManagementScreen(
                         }
                     }
                 } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(displayProducts) { product: Product ->
-                        ProductItem(
-                            product = product
-                        )
-                    }
-                    
-                    // Add some bottom padding
-                    item {
-                        Spacer(modifier = Modifier.height(80.dp))
-                    }
-                    
-                    // Show empty state if no products found
-                    if (filteredProducts.isEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(displayProducts) { product: Product ->
+                            ProductItem(
+                                product = product,
+                                userRole = userRole,
+                                onEditClick = { selectedProduct = it; showEditDialog = true },
+                                onDeleteClick = { selectedProduct = it; showDeleteConfirmation = true },
+                                onInventoryClick = { selectedProduct = it; showInventoryDialog = true }
+                            )
+                        }
+                        
+                        // Add some bottom padding
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (searchQuery.isEmpty()) {
-                                        "No products found"
-                                    } else {
-                                        "No products match your search"
-                                    },
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(80.dp))
                         }
                     }
                 }
@@ -960,5 +973,3 @@ fun EmployeeProductManagementScreen(
         )
     }
 }
-
-   }

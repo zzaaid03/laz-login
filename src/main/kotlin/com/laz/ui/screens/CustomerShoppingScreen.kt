@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.laz.models.Product
 import com.laz.viewmodels.SecureFirebaseProductViewModel
 import com.laz.viewmodels.SecureFirebaseCartViewModel
+import com.laz.ui.components.FloatingCartSummary
 
 /**
  * Customer Shopping Screen
@@ -34,6 +35,7 @@ fun CustomerShoppingScreen(
 ) {
     val products by productViewModel.getCustomerProducts().collectAsState()
     val cartItemCount by cartViewModel.cartItemCount.collectAsState()
+    val cartTotal by cartViewModel.cartTotal.collectAsState()
     val isLoading by productViewModel.isLoading.collectAsState()
     val errorMessage by productViewModel.errorMessage.collectAsState()
     val permissionError by productViewModel.permissionError.collectAsState()
@@ -245,6 +247,14 @@ fun CustomerShoppingScreen(
             cartViewModel.clearMessages()
         }
     }
+    
+    // Floating Cart Summary - Movable cart icon overlay
+    FloatingCartSummary(
+        cartItemCount = cartItemCount,
+        cartTotal = cartTotal,
+        isVisible = true,
+        onCartClick = onNavigateToCart
+    )
 }
 
 @Composable

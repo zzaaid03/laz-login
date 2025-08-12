@@ -48,7 +48,35 @@ class SecureFirebaseCartViewModel(
     }.stateIn(viewModelScope, SharingStarted.Lazily, BigDecimal.ZERO)
 
     init {
-        loadCartItems()
+        // Set up real-time cart listener when user is available
+        viewModelScope.launch {
+            currentUser.collect { user ->
+                if (user != null && (PermissionManager.canUseShoppingCart(user) || PermissionManager.isAdmin(user))) {
+                    println("DEBUG: Setting up real-time cart listener for user: ${user.username} (ID: ${user.id})")
+                    setupRealTimeCartListener(user.id)
+                } else {
+                    println("DEBUG: User not available or no cart permissions, clearing cart items")
+                    _cartItems.value = emptyList()
+                }
+            }
+        }
+    }
+
+    /**
+     * Set up real-time cart listener for automatic updates
+     */
+    private fun setupRealTimeCartListener(userId: Long) {
+        viewModelScope.launch {
+            try {
+                cartRepository.getCartItemsFlowByUserId(userId).collect { cartItems ->
+                    println("DEBUG: Real-time cart update received: ${cartItems.size} items")
+                    _cartItems.value = cartItems
+                }
+            } catch (e: Exception) {
+                println("DEBUG: Error in real-time cart listener: ${e.message}")
+                _errorMessage.value = "Failed to sync cart: ${e.message}"
+            }
+        }
     }
 
     /**
