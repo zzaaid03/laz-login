@@ -37,6 +37,9 @@ class FirebaseOrdersViewModel(
     private val _operationSuccess = MutableStateFlow<String?>(null)
     val operationSuccess: StateFlow<String?> = _operationSuccess.asStateFlow()
 
+    private val _lastCreatedOrder = MutableStateFlow<Order?>(null)
+    val lastCreatedOrder: StateFlow<Order?> = _lastCreatedOrder.asStateFlow()
+
     // Statistics
     private val _ordersCount = MutableStateFlow(0)
     val ordersCount: StateFlow<Int> = _ordersCount.asStateFlow()
@@ -135,7 +138,9 @@ class FirebaseOrdersViewModel(
                 // If stock reduction successful, create the order
                 val result = ordersRepository.createOrder(order)
                 if (result.isSuccess) {
-                    _operationSuccess.value = "Order created successfully! Order ID: ${result.getOrNull()?.id}"
+                    val createdOrder = result.getOrNull()
+                    _lastCreatedOrder.value = createdOrder
+                    _operationSuccess.value = "Order created successfully! Order ID: ${createdOrder?.id}"
                     loadOrders() // Refresh the list
                 } else {
                     // If order creation fails, we should restore the stock

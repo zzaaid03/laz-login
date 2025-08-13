@@ -485,9 +485,28 @@ private fun processPayment(
     // Submit order
     ordersViewModel.createOrder(order)
     
-    // Simulate payment processing delay
+    // Wait for the order to be created and get the real ID from Firebase
     CoroutineScope(Dispatchers.Main + SupervisorJob()).launch {
         delay(2000) // 2 second processing simulation
-        onSuccess(order)
+        
+        // Collect the lastCreatedOrder to get the real ID
+        var attempts = 0
+        val maxAttempts = 10 // Wait up to 5 seconds (500ms * 10)
+        
+        while (attempts < maxAttempts) {
+            val createdOrder = ordersViewModel.lastCreatedOrder.value
+            if (createdOrder != null && createdOrder.customerId == user.id && 
+                createdOrder.totalAmount == cartTotal) {
+                // Found the matching order with real ID
+                onSuccess(createdOrder)
+                return@launch
+            }
+            delay(500) // Wait 500ms before checking again
+            attempts++
+        }
+        
+        // Fallback: if we couldn't get the real order, use a timestamp-based ID
+        val fallbackOrder = order.copy(id = System.currentTimeMillis() / 1000)
+        onSuccess(fallbackOrder)
     }
 }
