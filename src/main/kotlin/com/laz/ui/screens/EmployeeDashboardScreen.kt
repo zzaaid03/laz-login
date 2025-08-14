@@ -32,6 +32,8 @@ fun EmployeeDashboardScreen(
     onNavigateToSalesProcessing: () -> Unit = {},
     onNavigateToReturnsProcessing: () -> Unit = {},
     onNavigateToSalesOverview: () -> Unit = {},
+    onNavigateToChatManagement: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
@@ -212,11 +214,30 @@ fun EmployeeDashboardScreen(
                         ) { onNavigateToReturnsProcessing() }
                         
                         ActionCard(
+                            title = "Customer Support",
+                            description = "Manage customer chats",
+                            icon = Icons.Default.SupportAgent,
+                            modifier = Modifier.weight(1f)
+                        ) { onNavigateToChatManagement() }
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ActionCard(
                             title = "Reports",
                             description = "View sales reports",
                             icon = Icons.Default.Assessment,
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToSalesOverview() }
+                        
+                        ActionCard(
+                            title = "Settings",
+                            description = "System settings",
+                            icon = Icons.Default.Settings,
+                            modifier = Modifier.weight(1f)
+                        ) { onNavigateToProfile() }
                     }
                 }
             }

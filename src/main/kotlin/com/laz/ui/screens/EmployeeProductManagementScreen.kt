@@ -35,6 +35,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
+import com.laz.ui.components.ProductImageDisplay
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -46,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,82 +63,57 @@ import com.laz.viewmodels.SecureFirebaseProductViewModel
 import com.laz.services.FirebaseStorageService
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
+import java.text.NumberFormat
+import java.util.Locale
 
-const val LOW_STOCK_THRESHOLD = 10
+// Default spacing values
+private object DefaultSpacing {
+    val small = 8.dp
+    val medium = 16.dp
+    val large = 24.dp
+}
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalFoundationApi::class)
+// Create a LocalSpacing CompositionLocal
+private val LocalSpacing = staticCompositionLocalOf { DefaultSpacing }
+
+// Constants
+private const val LOW_STOCK_THRESHOLD = 10
+
+// Sealed class for tab state
+sealed class ProductTab(val title: String) {
+    object All : ProductTab("All Products")
+    object LowStock : ProductTab("Low Stock")
+    object OutOfStock : ProductTab("Out of Stock")
+}
+
+// Data class for product state
+data class ProductUiState(
+    val products: List<Product> = emptyList(),
+    val lowStockProducts: List<Product> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
+// Simple tab indicator - removing complex offset function
 @Composable
-fun EmployeeProductManagementScreen(
-    onBackClick: () -> Unit,
-    productViewModel: SecureFirebaseProductViewModel = viewModel(),
-    userRole: String? = null
+private fun SimpleTabIndicator() {
+    // This will be handled by TabRowDefaults.Indicator
+}
+
+@Composable
+private fun ProductItem(
+    product: Product,
+    userRole: String? = null,
+    onEditClick: (Product) -> Unit = {},
+    onDeleteClick: (Product) -> Unit = {},
+    onInventoryClick: (Product) -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-
-    // UI State
-    var showAddDialog by rememberSaveable { mutableStateOf(false) }
-    var showEditDialog by rememberSaveable { mutableStateOf(false) }
-    var selectedProduct by remember { mutableStateOf<Product?>(null) }
-
-    // Collect products from ViewModel
-    val products by productViewModel.products.collectAsState()
-    val isLoading by productViewModel.isLoading.collectAsState()
-    
-    // Debug: Log products state changes
-    LaunchedEffect(products) {
-        println("DEBUG: UI - Products state changed: ${products.size} products")
-        products.forEach { product ->
-            println("DEBUG: UI - Product: ${product.name} (ID: ${product.id})")
-        }
-    }
-    
-    // Debug: Log loading state changes
-    LaunchedEffect(isLoading) {
-        println("DEBUG: UI - Loading state changed: $isLoading")
-    }
-
-    // Load products when the screen is first displayed
-    LaunchedEffect(Unit) {
-        println("DEBUG: EmployeeProductManagementScreen - Starting product load")
-        productViewModel.loadProducts()
-        
-        // Debug: Test direct Firebase connection
-        try {
-            val repository = com.laz.repositories.FirebaseProductRepository()
-            val result = repository.getAllProducts()
-            println("DEBUG: Direct repository call result: ${result.isSuccess}")
-            if (result.isSuccess) {
-                val products = result.getOrNull()
-                println("DEBUG: Direct repository loaded ${products?.size ?: 0} products")
-                products?.forEach { product ->
-                    println("DEBUG: Product: ${product.name} (ID: ${product.id})")
-                }
-            } else {
-                println("DEBUG: Direct repository error: ${result.exceptionOrNull()?.message}")
-            }
-        } catch (e: Exception) {
-            println("DEBUG: Direct repository exception: ${e.message}")
-        }
-    }
-
-    // Show loading indicator
-    if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    // Main UI
-    Column(
+    Card(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+            .fillMaxWidth()
+            .padding(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(8.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -198,36 +175,111 @@ fun EmployeeProductManagementScreen(
                     // Admin can edit, delete, and update inventory
                     IconButton(onClick = { onInventoryClick(product) }) {
                         Icon(
-                            imageVector = Icons.Default.Inventory,
-                            contentDescription = "Update Inventory",
-                            tint = MaterialTheme.colorScheme.primary
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back"
                         )
                     }
-                    IconButton(onClick = { onEditClick(product) }) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Product",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                },
+                actions = {
+                    // Only show Add button for Admin
+                    if (userRole == "ADMIN") {
+                        IconButton(onClick = { showAddDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add Product"
+                            )
+                        }
                     }
-                    IconButton(onClick = { onDeleteClick(product) }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Product",
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                }
+            )
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (products.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Inventory,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = "No products available",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                            if (userRole == "ADMIN") {
+                                Text(
+                                    text = "Add your first product to get started",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
                     }
-                } else {
-                    // Employee has read-only access
-                    Text(
-                        text = "View Only",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(8.dp)
+                }
+            } else {
+                items(products) { product ->
+                    ProductItemCard(
+                        product = product,
+                        onEditClick = if (userRole == "ADMIN") {
+                            {
+                                selectedProduct = product
+                                showEditDialog = true
+                            }
+                        } else null
                     )
                 }
             }
         }
+    }
+
+    // Add Product Dialog
+    if (showAddDialog) {
+        ProductFormDialogWithImage(
+            onDismiss = { showAddDialog = false },
+            onSave = { newProduct ->
+                coroutineScope.launch {
+                    productViewModel.addProduct(newProduct)
+                    showAddDialog = false
+                }
+            }
+        )
+    }
+
+    // Edit Product Dialog
+    if (showEditDialog && selectedProduct != null) {
+        ProductFormDialogWithImage(
+            product = selectedProduct,
+            isEditing = true,
+            onDismiss = { 
+                showEditDialog = false
+                selectedProduct = null
+            },
+            onSave = { updatedProduct ->
+                coroutineScope.launch {
+                    productViewModel.updateProduct(updatedProduct)
+                    showEditDialog = false
+                    selectedProduct = null
+                }
+            }
+        )
     }
 }
 
@@ -307,7 +359,7 @@ fun ProductFormDialogWithImage(
     var uploadProgress by remember { mutableStateOf(0f) }
     
     var showError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var dialogErrorMessage by remember { mutableStateOf("") }
     
     // Firebase Storage Service
     val storageService = remember { FirebaseStorageService() }
@@ -452,7 +504,7 @@ fun ProductFormDialogWithImage(
                         // Error message
                         if (showError) {
                             Text(
-                                text = errorMessage,
+                                text = dialogErrorMessage,
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -509,7 +561,7 @@ fun ProductFormDialogWithImage(
                                                 onFailure = { exception ->
                                                     println("DEBUG: Image upload failed: ${exception.message}")
                                                     showError = true
-                                                    errorMessage = "Failed to upload image: ${exception.message}"
+                                                    dialogErrorMessage = "Failed to upload image: ${exception.message}"
                                                     isUploading = false
                                                     return@launch
                                                 }
@@ -541,12 +593,12 @@ fun ProductFormDialogWithImage(
                                         e.printStackTrace()
                                         isUploading = false
                                         showError = true
-                                        errorMessage = "Error saving product: ${e.message}"
+                                        dialogErrorMessage = "Error saving product: ${e.message}"
                                     }
                                 }
                             } else if (!isFormValid) {
                                 showError = true
-                                errorMessage = "Please fill out all fields correctly"
+                                dialogErrorMessage = "Please fill out all fields correctly"
                             }
                         },
                         enabled = isFormValid && !isUploading,

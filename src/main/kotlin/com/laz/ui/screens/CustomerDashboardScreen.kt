@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.laz.models.User
 import com.laz.viewmodels.*
+import com.laz.ui.components.FloatingCartSummary
 import java.text.NumberFormat
 import java.util.*
 
@@ -35,6 +36,7 @@ fun CustomerDashboardScreen(
     onNavigateToProfile: () -> Unit = {},
     onNavigateToOrderHistory: () -> Unit = {},
     onNavigateToChat: () -> Unit = {},
+    onNavigateToCustomerSupport: () -> Unit = {},
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     cartViewModel: SecureFirebaseCartViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
@@ -267,7 +269,7 @@ fun CustomerDashboardScreen(
                             description = "Get help and assistance",
                             icon = Icons.Default.SupportAgent,
                             modifier = Modifier.weight(1f)
-                        ) { onNavigateToChat() }
+                        ) { onNavigateToCustomerSupport() }
                     }
                 }
             }
@@ -371,6 +373,16 @@ fun CustomerDashboardScreen(
                 }
             }
         }
+    }
+    
+    // Floating Cart Summary - Show only if cart has items
+    if (cartItemCount > 0) {
+        FloatingCartSummary(
+            cartItemCount = cartItemCount,
+            cartTotal = cartTotal,
+            isVisible = true,
+            onCartClick = onNavigateToCart
+        )
     }
 }
 

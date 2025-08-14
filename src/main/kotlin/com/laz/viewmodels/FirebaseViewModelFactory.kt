@@ -8,6 +8,7 @@ import com.laz.repositories.FirebaseUserRepository
 import com.laz.repositories.FirebaseSalesRepository
 import com.laz.repositories.FirebaseReturnsRepository
 import com.laz.repositories.FirebaseOrdersRepository
+import com.laz.repositories.FirebaseChatRepository
 import com.laz.services.FirebaseAuthService
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +31,7 @@ class SecureFirebaseViewModelFactory(
     private val firebaseSalesRepository: FirebaseSalesRepository,
     private val firebaseReturnsRepository: FirebaseReturnsRepository,
     private val firebaseOrdersRepository: FirebaseOrdersRepository,
+    private val firebaseChatRepository: FirebaseChatRepository,
     private val currentUser: StateFlow<User?>
 ) : ViewModelProvider.Factory {
 
@@ -83,6 +85,11 @@ class SecureFirebaseViewModelFactory(
                     currentUser = currentUser
                 ) as T
             }
+            FirebaseChatViewModel::class.java -> {
+                FirebaseChatViewModel(
+                    chatRepository = firebaseChatRepository
+                ) as T
+            }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
     }
@@ -100,6 +107,7 @@ object FirebaseServices {
     val salesRepository: FirebaseSalesRepository by lazy { FirebaseSalesRepository() }
     val returnsRepository: FirebaseReturnsRepository by lazy { FirebaseReturnsRepository() }
     val ordersRepository: FirebaseOrdersRepository by lazy { FirebaseOrdersRepository() }
+    val chatRepository: FirebaseChatRepository by lazy { FirebaseChatRepository() }
     val databaseService: com.laz.firebase.FirebaseDatabaseService by lazy { com.laz.firebase.FirebaseDatabaseService() }
     
     // Current user StateFlow that combines Firebase auth with User model data
@@ -181,22 +189,13 @@ object FirebaseServices {
             firebaseSalesRepository = salesRepository,
             firebaseReturnsRepository = returnsRepository,
             firebaseOrdersRepository = ordersRepository,
+            firebaseChatRepository = chatRepository,
             currentUser = currentUser
         )
     }
     
     // Secure ViewModelFactory with role-based access control
     val secureViewModelFactory: SecureFirebaseViewModelFactory by lazy {
-        SecureFirebaseViewModelFactory(
-            firebaseAuthService = authService,
-            firebaseUserRepository = userRepository,
-            firebaseProductRepository = productRepository,
-            firebaseCartRepository = cartRepository,
-            firebaseSalesRepository = salesRepository,
-            firebaseReturnsRepository = returnsRepository,
-            firebaseOrdersRepository = ordersRepository,
-            currentUser = currentUser
-        )
         viewModelFactory // Use the same instance
     }
 }

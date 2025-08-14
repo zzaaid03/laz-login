@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.laz.models.*
@@ -41,7 +42,7 @@ fun OrderTrackingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Order Tracking") },
+                title = { Text("Active Orders") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -134,12 +135,53 @@ fun OrderTrackingScreen(
                     }
                 }
             } else {
-                // Orders list
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(orders) { order ->
-                        OrderCard(order = order)
+                // Filter for current/active orders only (PENDING, CONFIRMED, PROCESSING, SHIPPED)
+                val currentOrders = orders.filter { order ->
+                    order.status == OrderStatus.PENDING ||
+                    order.status == OrderStatus.CONFIRMED ||
+                    order.status == OrderStatus.PROCESSING ||
+                    order.status == OrderStatus.SHIPPED
+                }
+                
+                if (currentOrders.isEmpty()) {
+                    // No current orders
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "No Current Orders",
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No Active Orders",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "You have no orders currently being processed. Check Order History for completed orders.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    // Current orders list
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(currentOrders) { order ->
+                            OrderCard(order = order)
+                        }
                     }
                 }
             }
