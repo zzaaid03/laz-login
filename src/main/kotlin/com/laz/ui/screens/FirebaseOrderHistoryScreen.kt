@@ -109,12 +109,46 @@ fun FirebaseOrderHistoryScreen(
                     )
                 }
             } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(orders) { order ->
-                        OrderHistoryItem(order = order)
+                // Filter for completed orders only (Delivered, Cancelled, Returned)
+                val completedOrders = orders.filter { order ->
+                    order.status == com.laz.models.OrderStatus.DELIVERED || 
+                    order.status == com.laz.models.OrderStatus.CANCELLED || 
+                    order.status == com.laz.models.OrderStatus.RETURNED
+                }
+                
+                if (completedOrders.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Receipt,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            text = "No completed orders yet",
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "Completed orders will appear here",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(completedOrders) { order ->
+                            OrderHistoryItem(order = order)
+                        }
                     }
                 }
             }

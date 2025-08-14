@@ -16,6 +16,7 @@ import com.laz.models.Product
 import com.laz.viewmodels.SecureFirebaseProductViewModel
 import com.laz.viewmodels.SecureFirebaseCartViewModel
 import com.laz.ui.components.FloatingCartSummary
+import com.laz.ui.components.ProductImageDisplay
 
 /**
  * Customer Shopping Screen
@@ -248,13 +249,15 @@ fun CustomerShoppingScreen(
         }
     }
     
-    // Floating Cart Summary - Movable cart icon overlay
-    FloatingCartSummary(
-        cartItemCount = cartItemCount,
-        cartTotal = cartTotal,
-        isVisible = true,
-        onCartClick = onNavigateToCart
-    )
+    // Floating Cart Summary - Show only if cart has items
+    if (cartItemCount > 0) {
+        FloatingCartSummary(
+            cartItemCount = cartItemCount,
+            cartTotal = cartTotal,
+            isVisible = true,
+            onCartClick = onNavigateToCart
+        )
+    }
 }
 
 @Composable
@@ -278,6 +281,14 @@ private fun CustomerProductCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
+                // Product Image
+                ProductImageDisplay(
+                    imageUrl = product.imageUrl,
+                    modifier = Modifier.size(80.dp)
+                )
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = product.name,

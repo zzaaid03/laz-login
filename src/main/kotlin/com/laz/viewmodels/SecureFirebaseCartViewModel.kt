@@ -41,11 +41,36 @@ class SecureFirebaseCartViewModel(
         items.sumOf { it.quantity }
     }.stateIn(viewModelScope, SharingStarted.Lazily, 0)
 
-    val cartTotal: StateFlow<BigDecimal> = cartItems.map { items ->
-        // Note: We'll need to get product prices from the product repository
-        // For now, return zero until we implement proper cart total calculation
-        BigDecimal.ZERO
-    }.stateIn(viewModelScope, SharingStarted.Lazily, BigDecimal.ZERO)
+    // Cart total - calculated separately to handle async product price fetching
+    private val _cartTotal = MutableStateFlow(BigDecimal.ZERO)
+    val cartTotal: StateFlow<BigDecimal> = _cartTotal.asStateFlow()
+    
+    // Calculate cart total whenever cart items change
+    private fun calculateCartTotal() {
+        viewModelScope.launch {
+            try {
+                val items = cartItems.value
+                var total = BigDecimal.ZERO
+                
+                items.forEach { cartItem ->
+                    val productResult = productRepository.getProductById(cartItem.productId)
+                    if (productResult.isSuccess) {
+                        val product = productResult.getOrNull()
+                        if (product != null) {
+                            val itemTotal = product.price.multiply(BigDecimal(cartItem.quantity))
+                            total = total.add(itemTotal)
+                        }
+                    }
+                }
+                
+                _cartTotal.value = total
+                println("DEBUG: Cart total calculated: $total JOD")
+            } catch (e: Exception) {
+                println("DEBUG: Error calculating cart total: ${e.message}")
+                _cartTotal.value = BigDecimal.ZERO
+            }
+        }
+    }
 
     init {
         // Set up real-time cart listener when user is available
@@ -57,7 +82,15 @@ class SecureFirebaseCartViewModel(
                 } else {
                     println("DEBUG: User not available or no cart permissions, clearing cart items")
                     _cartItems.value = emptyList()
+                    _cartTotal.value = BigDecimal.ZERO
                 }
+            }
+        }
+        
+        // Recalculate cart total whenever cart items change
+        viewModelScope.launch {
+            cartItems.collect { items ->
+                calculateCartTotal()
             }
         }
     }

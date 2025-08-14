@@ -146,7 +146,9 @@ fun FirebaseLazStoreApp(
                         onNavigateToProductManagement = { navController.navigate(Screen.ProductManagement.route) },
                         onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) },
                         onNavigateToReturnsProcessing = { navController.navigate(Screen.ReturnsProcessing.route) },
-                        onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) }
+                        onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) },
+                        onNavigateToChatManagement = { navController.navigate(Screen.EmployeeChatManagement.route) },
+                        onNavigateToProfile = { navController.navigate(Screen.ProfileScreen.route) }
                     )
                 } else {
                     // User is null, navigate to login
@@ -175,7 +177,8 @@ fun FirebaseLazStoreApp(
                         onNavigateToCart = { navController.navigate(Screen.EnhancedCart.route) },
                         onNavigateToProfile = { navController.navigate(Screen.ProfileScreen.route) },
                         onNavigateToOrderHistory = { navController.navigate(Screen.OrderHistory.route) },
-                        onNavigateToChat = { navController.navigate(Screen.Chat.route) }
+                        onNavigateToChat = { navController.navigate(Screen.Chat.route) },
+                        onNavigateToCustomerSupport = { navController.navigate(Screen.CustomerSupport.route) }
                     )
                 } else {
                     // User is null, navigate to login
@@ -357,6 +360,40 @@ fun FirebaseLazStoreApp(
                     }
                 }
             }
+            
+            // Customer Support Chat Screen
+            composable(Screen.CustomerSupport.route) {
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    CustomerChatScreen(
+                        user = currentUser,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
+            
+            // Employee Chat Management Screen
+            composable(Screen.EmployeeChatManagement.route) {
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    EmployeeChatManagementScreen(
+                        employee = currentUser,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -385,4 +422,6 @@ sealed class Screen(val route: String) {
     object OrderManagement : Screen("order_management")
     object OrderHistory : Screen("order_history")
     object Chat : Screen("chat")
+    object CustomerSupport : Screen("customer_support")
+    object EmployeeChatManagement : Screen("employee_chat_management")
 }

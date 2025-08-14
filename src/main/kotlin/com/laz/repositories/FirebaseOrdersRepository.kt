@@ -128,10 +128,26 @@ class FirebaseOrdersRepository {
     }
 
     /**
-     * Update order status
+     * Update order status with automatic stock restoration for cancelled/returned orders
      */
     suspend fun updateOrderStatus(orderId: Long, status: OrderStatus, trackingNumber: String? = null): Result<Unit> {
         return try {
+            // First, get the current order to check if we need to restore stock
+            val orderResult = getOrderById(orderId)
+            if (orderResult.isFailure) {
+                return Result.failure(orderResult.exceptionOrNull() ?: Exception("Failed to get order"))
+            }
+            
+            val order = orderResult.getOrNull()
+            if (order == null) {
+                return Result.failure(Exception("Order not found"))
+            }
+            
+            // Check if we need to restore stock (when changing to CANCELLED or RETURNED)
+            val shouldRestoreStock = (status == OrderStatus.CANCELLED || status == OrderStatus.RETURNED) &&
+                    (order.status != OrderStatus.CANCELLED && order.status != OrderStatus.RETURNED)
+            
+            // Update order status
             val updates = mutableMapOf<String, Any?>(
                 "status" to status.name
             )
@@ -140,9 +156,46 @@ class FirebaseOrdersRepository {
             }
             
             ordersRef.child(orderId.toString()).updateChildren(updates).await()
+            
+            // Restore stock if needed
+            if (shouldRestoreStock) {
+                restoreOrderStock(order)
+            }
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Restore product stock for cancelled or returned orders
+     */
+    private suspend fun restoreOrderStock(order: Order) {
+        try {
+            val productsRef = database.getReference("products")
+            
+            for (item in order.items) {
+                // Get current product data
+                val productSnapshot = productsRef.child(item.productId.toString()).get().await()
+                if (productSnapshot.exists()) {
+                    val currentQuantity = productSnapshot.child("quantity").getValue(Int::class.java) ?: 0
+                    val restoredQuantity = currentQuantity + item.quantity
+                    
+                    // Update product quantity
+                    productsRef.child(item.productId.toString())
+                        .child("quantity")
+                        .setValue(restoredQuantity)
+                        .await()
+                    
+                    println("DEBUG: Restored stock for product ${item.productId}: ${item.quantity} units (${currentQuantity} -> ${restoredQuantity})")
+                }
+            }
+            
+            println("DEBUG: Successfully restored stock for order ${order.id}")
+        } catch (e: Exception) {
+            println("ERROR: Failed to restore stock for order ${order.id}: ${e.message}")
+            // Don't throw exception here - order status update should still succeed
         }
     }
 

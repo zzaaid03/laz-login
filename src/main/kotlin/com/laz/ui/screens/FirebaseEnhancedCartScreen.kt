@@ -24,6 +24,7 @@ import com.laz.models.CartItem
 import com.laz.models.Product
 import com.laz.models.User
 import com.laz.viewmodels.*
+import com.laz.ui.components.ProductImageDisplay
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
@@ -336,6 +337,14 @@ fun EnhancedCartItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Product Image
+                ProductImageDisplay(
+                    imageUrl = product.imageUrl,
+                    modifier = Modifier.size(60.dp)
+                )
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = product.name,
