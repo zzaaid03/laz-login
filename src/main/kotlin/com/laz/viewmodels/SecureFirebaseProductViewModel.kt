@@ -47,6 +47,8 @@ class SecureFirebaseProductViewModel(
     fun loadProducts() {
         val user = currentUser.value
         println("DEBUG: Loading products for user: ${user?.username} (role: ${user?.role})")
+        println("DEBUG: User object: $user")
+        println("DEBUG: User is null: ${user == null}")
         
         if (!PermissionManager.canViewProducts(user)) {
             println("DEBUG: Permission denied for user: ${user?.username}")
@@ -65,7 +67,9 @@ class SecureFirebaseProductViewModel(
                 if (result.isSuccess) {
                     val products = result.getOrNull() ?: emptyList()
                     println("DEBUG: Successfully loaded ${products.size} products from Firebase")
+                    println("DEBUG: Setting _products.value to ${products.size} products")
                     _products.value = products
+                    println("DEBUG: _products.value now contains ${_products.value.size} products")
                     
                     // If no products exist, create sample products (for initial setup)
                     if (products.isEmpty()) {
@@ -83,6 +87,7 @@ class SecureFirebaseProductViewModel(
                 _errorMessage.value = errorMsg
             } finally {
                 _isLoading.value = false
+                println("DEBUG: Loading completed, isLoading set to false")
             }
         }
     }

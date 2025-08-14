@@ -403,6 +403,7 @@ class FirebaseCartRepository {
             val quantity = child("quantity").getValue(Int::class.java) ?: 0
             val costString = child("cost").getValue(String::class.java) ?: "0.00"
             val shelfLocation = child("shelfLocation").getValue(String::class.java)
+            val imageUrl = child("imageUrl").getValue(String::class.java)
 
             Product(
                 id = id,
@@ -410,7 +411,8 @@ class FirebaseCartRepository {
                 quantity = quantity,
                 cost = BigDecimal(costString),
                 price = BigDecimal(priceString),
-                shelfLocation = shelfLocation
+                shelfLocation = shelfLocation,
+                imageUrl = imageUrl
             )
         } catch (e: Exception) {
             null

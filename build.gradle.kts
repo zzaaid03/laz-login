@@ -22,6 +22,11 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        
+        // Add native library compatibility for Huawei devices
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+        }
     }
 
     buildTypes {
@@ -38,10 +43,18 @@ android {
         abortOnError = false
     }
     
-    // Remove test configuration to avoid build issues
+    // Enhanced packaging options to prevent conflicts
     packagingOptions {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+        }
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
     
@@ -65,6 +78,14 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+        }
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 }
@@ -106,6 +127,9 @@ dependencies {
     // Security/Crypto for Android
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     
+    // Image loading and picker
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    
     // Firebase BOM - ensures compatible versions
     implementation(platform("com.google.firebase:firebase-bom:31.5.0"))
     
@@ -113,6 +137,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
     
     // Testing
     testImplementation("junit:junit:4.13.2")
