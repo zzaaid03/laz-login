@@ -33,5 +33,8 @@ data class Product(
     val price: BigDecimal,
     
     @ColumnInfo(name = "shelf_location")
-    val shelfLocation: String? = null
+    val shelfLocation: String? = null,
+    
+    @ColumnInfo(name = "image_url")
+    val imageUrl: String? = null
 )
