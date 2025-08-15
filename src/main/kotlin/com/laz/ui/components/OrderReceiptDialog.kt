@@ -57,13 +57,13 @@ fun OrderReceiptDialog(
                     )
                     
                     Row {
-                        IconButton(onClick = { /* TODO: Implement print */ }) {
+                        IconButton(onClick = { /* Print functionality not implemented */ }) {
                             Icon(
                                 imageVector = Icons.Default.Print,
                                 contentDescription = "Print Receipt"
                             )
                         }
-                        IconButton(onClick = { /* TODO: Implement share */ }) {
+                        IconButton(onClick = { /* Share functionality not implemented */ }) {
                             Icon(
                                 imageVector = Icons.Default.Share,
                                 contentDescription = "Share Receipt"
@@ -72,7 +72,7 @@ fun OrderReceiptDialog(
                     }
                 }
                 
-                Divider(modifier = Modifier.padding(vertical = 16.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                 
                 // Receipt Content
                 Column(
@@ -166,7 +166,7 @@ fun OrderReceiptDialog(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Total
-                    Divider()
+                    HorizontalDivider()
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),

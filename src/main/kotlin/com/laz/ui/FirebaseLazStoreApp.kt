@@ -12,7 +12,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.laz.models.User
 import com.laz.models.UserRole
+import com.laz.models.Order
 import com.laz.ui.screens.*
 import com.laz.viewmodels.*
 import java.math.BigDecimal
@@ -23,13 +25,14 @@ import java.math.BigDecimal
  */
 @Composable
 fun FirebaseLazStoreApp(
-    firebaseAuthViewModel: FirebaseAuthViewModel
+    user: User,
+    authViewModel: FirebaseAuthViewModel
 ) {
     val navController = rememberNavController()
     
     // Observe Firebase auth state
-    val authState by firebaseAuthViewModel.authState.collectAsState()
-    val isLoading by firebaseAuthViewModel.isLoading.collectAsState()
+    val authState by authViewModel.authState.collectAsState()
+    val isLoading by authViewModel.isLoading.collectAsState()
     
     // Simple role-based navigation without complex ViewModels
     // The secure ViewModels are available in the role-specific screens when needed
@@ -73,7 +76,7 @@ fun FirebaseLazStoreApp(
             // Authentication Screens
             composable(Screen.Login.route) {
                 FirebaseLoginScreen(
-                    authViewModel = firebaseAuthViewModel,
+                    authViewModel = authViewModel,
                     onNavigateToSignup = { navController.navigate(Screen.Signup.route) },
                     onLoginSuccess = { userRole ->
                         val destination = when (userRole) {
@@ -90,7 +93,7 @@ fun FirebaseLazStoreApp(
 
             composable(Screen.Signup.route) {
                 FirebaseSignupScreen(
-                    authViewModel = firebaseAuthViewModel,
+                    authViewModel = authViewModel,
                     onNavigateToLogin = { navController.navigate(Screen.Login.route) },
                     onSignupSuccess = {
                         navController.navigate(Screen.CustomerDashboard.route) {
@@ -108,16 +111,21 @@ fun FirebaseLazStoreApp(
                         user = currentUser,
                         onNavigateBack = { navController.popBackStack() },
                         onLogout = { 
-                            firebaseAuthViewModel.signOut()
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true } 
+                            try {
+                                authViewModel.signOut()
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(0) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("Navigation", "Logout navigation error: ${e.message}")
                             }
                         },
                         onNavigateToUserManagement = { navController.navigate(Screen.UserManagement.route) },
                         onNavigateToProductManagement = { navController.navigate(Screen.ProductManagement.route) },
-                        onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) },
+                        onNavigateToPointOfSale = { navController.navigate(Screen.PointOfSale.route) },
                         onNavigateToReturnsProcessing = { navController.navigate(Screen.ReturnsProcessing.route) },
-                        onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) },
+                        onNavigateToOrderAnalytics = { navController.navigate(Screen.OrderAnalytics.route) },
                         onNavigateToOrderManagement = { navController.navigate(Screen.OrderManagement.route) }
                     )
                 } else {
@@ -138,16 +146,20 @@ fun FirebaseLazStoreApp(
                         user = currentUser,
                         onNavigateBack = { navController.popBackStack() },
                         onLogout = { 
-                            firebaseAuthViewModel.signOut()
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true } 
+                            try {
+                                authViewModel.signOut()
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(0) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("Navigation", "Logout navigation error: ${e.message}")
                             }
                         },
                         onNavigateToProductManagement = { navController.navigate(Screen.ProductManagement.route) },
-                        onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) },
+                        onNavigateToPointOfSale = { navController.navigate(Screen.PointOfSale.route) },
                         onNavigateToReturnsProcessing = { navController.navigate(Screen.ReturnsProcessing.route) },
                         onNavigateToOrderManagement = { navController.navigate(Screen.OrderManagement.route) },
-                        onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) },
                         onNavigateToChatManagement = { navController.navigate(Screen.EmployeeChatManagement.route) },
                         onNavigateToProfile = { navController.navigate(Screen.ProfileScreen.route) }
                     )
@@ -162,35 +174,19 @@ fun FirebaseLazStoreApp(
             }
             
             // Customer Dashboard
-            composable(Screen.CustomerDashboard.route) {
-                val currentUser = authState.user
-                if (currentUser != null) {
-                    CustomerDashboardScreen(
-                        user = currentUser,
-                        onNavigateBack = { navController.popBackStack() },
-                        onLogout = { 
-                            firebaseAuthViewModel.signOut()
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true } 
-                            }
-                        },
-                        onNavigateToShopping = { navController.navigate(Screen.CustomerShopping.route) },
-                        onNavigateToCart = { navController.navigate(Screen.EnhancedCart.route) },
-                        onNavigateToProfile = { navController.navigate(Screen.ProfileScreen.route) },
-                        onNavigateToOrderHistory = { navController.navigate(Screen.OrderHistory.route) },
-                        onNavigateToChat = { navController.navigate(Screen.Chat.route) },
-                        onNavigateToCustomerSupport = { navController.navigate(Screen.CustomerSupport.route) }
-                    )
-                } else {
-                    // User is null, navigate to login
-                    LaunchedEffect(Unit) {
+            composable("customer_dashboard") {
+                CustomerDashboardScreen(
+                    user = user,
+                    onNavigateBack = { navController.popBackStack() },
+                    onLogout = { 
+                        authViewModel.signOut()
                         navController.navigate(Screen.Login.route) {
-                            popUpTo(0) { inclusive = true }
+                            popUpTo(0) { inclusive = true } 
                         }
                     }
-                }
+                )
             }
-
+            
             // Product Management Screen
             composable(Screen.ProductManagement.route) {
                 val productViewModel: SecureFirebaseProductViewModel = viewModel(
@@ -207,22 +203,21 @@ fun FirebaseLazStoreApp(
             // Profile Screen - Simple profile management
             composable(Screen.ProfileScreen.route) {
                 FirebaseProfileScreen(
-                    authViewModel = firebaseAuthViewModel,
+                    authViewModel = authViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
             
-            // Sales Overview Screen - Analytics dashboard (now using orders)
-            composable(Screen.SalesOverview.route) {
-                // TODO: Replace with order-based analytics screen
-                // For now, navigate back since FirebaseSalesOverviewScreen was removed
+            // Order Analytics Screen - Analytics dashboard (now using orders)
+            composable(Screen.OrderAnalytics.route) {
+                // Navigate back since dedicated analytics screen is not implemented yet
                 LaunchedEffect(Unit) {
                     navController.popBackStack()
                 }
             }
             
-            // Sales Processing Screen - Point of Sale
-            composable(Screen.SalesProcessing.route) {
+            // Point of Sale Screen - In-store order processing
+            composable(Screen.PointOfSale.route) {
                 FirebaseSalesProcessingScreen(
                     onBack = { navController.popBackStack() }
                 )
@@ -313,12 +308,12 @@ fun FirebaseLazStoreApp(
                 }
             }
             
-            // Order Tracking Screen - Customer order status
+            // Order Tracking Screen - Customer order tracking
             composable(Screen.OrderTracking.route) {
                 val currentUser = authState.user
                 if (currentUser != null) {
-                    OrderTrackingScreen(
-                        user = currentUser,
+                    FirebaseOrderHistoryScreen(
+                        currentUser = currentUser,
                         onNavigateBack = { navController.popBackStack() }
                     )
                 } else {
@@ -418,9 +413,9 @@ sealed class Screen(val route: String) {
     object Payment : Screen("payment")
     object OrderTracking : Screen("order_tracking")
     object ProfileScreen : Screen("profile_screen")
-    object SalesProcessing : Screen("sales_processing")
+    object PointOfSale : Screen("point_of_sale")
     object ReturnsProcessing : Screen("returns_processing")
-    object SalesOverview : Screen("sales_overview")
+    object OrderAnalytics : Screen("order_analytics")
     object UserManagement : Screen("user_management")
     object OrderManagement : Screen("order_management")
     object OrderHistory : Screen("order_history")

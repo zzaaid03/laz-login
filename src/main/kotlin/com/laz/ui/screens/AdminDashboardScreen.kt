@@ -7,9 +7,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.AssignmentReturn
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,9 +38,9 @@ fun AdminDashboardScreen(
     onLogout: () -> Unit,
     onNavigateToUserManagement: () -> Unit,
     onNavigateToProductManagement: () -> Unit,
-    onNavigateToSalesProcessing: () -> Unit,
+    onNavigateToPointOfSale: () -> Unit,
     onNavigateToReturnsProcessing: () -> Unit,
-    onNavigateToSalesOverview: () -> Unit,
+    onNavigateToOrderAnalytics: () -> Unit,
     onNavigateToOrderManagement: () -> Unit,
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     userViewModel: SecureFirebaseUserViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
@@ -54,8 +52,7 @@ fun AdminDashboardScreen(
     val products by productViewModel.products.collectAsState()
     val errorMessage by userViewModel.errorMessage.collectAsState()
     
-    // Collect real Firebase orders and returns data
-    val returns by returnsViewModel.returns.collectAsState()
+    // Collect returns data
     val returnsCount by returnsViewModel.returnsCount.collectAsState()
     val returnsErrorMessage by returnsViewModel.errorMessage.collectAsState()
     
@@ -76,8 +73,8 @@ fun AdminDashboardScreen(
     val lowStockProducts = products.filter { it.quantity <= 5 }.size
     val totalEmployees = userStats.employeeCount
     
-    // Calculate today's sales from real Firebase orders data
-    val todaysSales = remember(orders) {
+    // Calculate today's revenue from real Firebase orders data
+    val todaysRevenue = remember(orders) {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         orders.filter { order ->
             order.status == com.laz.models.OrderStatus.DELIVERED && 
@@ -104,7 +101,7 @@ fun AdminDashboardScreen(
                 },
                 actions = {
                     IconButton(onClick = onLogout) {
-                        Icon(Icons.Default.Logout, contentDescription = "Logout")
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -181,20 +178,12 @@ fun AdminDashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     StatCard(
-                        title = "Total Sales",
-                        value = "JOD ${String.format("%.2f", todaysSales)}",
+                        title = "Total Revenue",
+                        value = "JOD ${String.format("%.2f", todaysRevenue)}",
                         icon = Icons.Default.AttachMoney,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
-                    ) { onNavigateToSalesOverview() }
-                    
-                    StatCard(
-                        title = "Today's Sales",
-                        value = "JOD ${String.format("%.2f", todaysSales)}",
-                        icon = Icons.AutoMirrored.Filled.TrendingUp,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f)
-                    ) { onNavigateToSalesOverview() }
+                    ) { onNavigateToOrderAnalytics() }
                 }
             }
             
@@ -214,11 +203,11 @@ fun AdminDashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     ActionCard(
-                        title = "Process Sale",
-                        description = "Create new sale transaction",
+                        title = "Point of Sale",
+                        description = "Create new in-store order",
                         icon = Icons.Default.PointOfSale,
                         modifier = Modifier.weight(1f),
-                        onClick = onNavigateToSalesProcessing
+                        onClick = onNavigateToPointOfSale
                     )
                     
                     ActionCard(
@@ -245,6 +234,21 @@ fun AdminDashboardScreen(
                     )
                     
                     ActionCard(
+                        title = "Product Management",
+                        description = "Manage inventory and products",
+                        icon = Icons.Default.Inventory,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToProductManagement
+                    )
+                }
+            }
+            
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ActionCard(
                         title = "User Management",
                         description = "Manage employees and customers",
                         icon = Icons.Default.People,
@@ -254,10 +258,10 @@ fun AdminDashboardScreen(
                 }
             }
             
-            // Recent Sales List - FIXED: Now uses Order-based logic
+            // Recent Orders List - FIXED: Now uses Order-based logic
             item {
                 Text(
-                    "Recent Sales",
+                    "Recent Orders",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -277,12 +281,12 @@ fun AdminDashboardScreen(
                         val deliveredOrders = orders.filter { it.status == com.laz.models.OrderStatus.DELIVERED }
                         if (deliveredOrders.isEmpty()) {
                             Text(
-                                "No sales recorded yet",
+                                "No orders recorded yet",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
-                            // Show last 3 delivered orders (sales)
+                            // Show last 3 delivered orders
                             deliveredOrders.take(3).forEach { order ->
                                 Row(
                                     modifier = Modifier
@@ -320,10 +324,10 @@ fun AdminDashboardScreen(
                             if (deliveredOrders.size > 3) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 TextButton(
-                                    onClick = { onNavigateToSalesOverview() },
+                                    onClick = { onNavigateToOrderAnalytics() },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text("View All Sales (${deliveredOrders.size})")
+                                    Text("View All Orders (${deliveredOrders.size})")
                                 }
                             }
                         }
@@ -431,10 +435,10 @@ fun AdminDashboardScreen(
                             containerColor = MaterialTheme.colorScheme.errorContainer
                         )
                     ) {
-                        Text(
-                            "Returns Error: $error",
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                        Icon(
+                            Icons.AutoMirrored.Filled.Logout,
+                            contentDescription = "Logout",
+                            tint = MaterialTheme.colorScheme.error
                         )
                     }
                 }

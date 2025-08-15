@@ -18,14 +18,52 @@ class FirebaseOrdersRepository {
     private val database = FirebaseDatabase.getInstance()
     private val ordersRef = database.getReference("orders")
     
-    /**
-     * Create new order
-     */
+    init {
+        android.util.Log.d("FirebaseOrders", "Repository initialized")
+        android.util.Log.d("FirebaseOrders", "Database URL: ${database.reference.toString()}")
+        android.util.Log.d("FirebaseOrders", "Orders reference: ${ordersRef.toString()}")
+    }
+    
     suspend fun createOrder(order: Order): Result<Order> {
         return try {
+            android.util.Log.d("FirebaseOrders", "Starting createOrder process...")
+            
+            // Test Firebase connection first
+            try {
+                val testRef = database.getReference("test")
+                testRef.setValue("connection_test_${System.currentTimeMillis()}").await()
+                android.util.Log.d("FirebaseOrders", "✅ Firebase connection test successful")
+            } catch (e: Exception) {
+                android.util.Log.e("FirebaseOrders", "❌ Firebase connection test failed: ${e.message}")
+                return Result.failure(Exception("Firebase connection failed: ${e.message}"))
+            }
+            
             val orderId = getNextOrderId()
+            android.util.Log.d("FirebaseOrders", "Generated order ID: $orderId")
             val orderWithId = order.copy(id = orderId)
             
+            // Check stock availability
+            android.util.Log.d("FirebaseOrders", "Checking stock availability for ${orderWithId.items.size} items")
+            val stockCheckResult = checkStockAvailability(orderWithId.items)
+            if (!stockCheckResult.first) {
+                android.util.Log.e("FirebaseOrders", "Stock check failed: ${stockCheckResult.second}")
+                return Result.failure(Exception("Insufficient stock: ${stockCheckResult.second}"))
+            }
+            android.util.Log.d("FirebaseOrders", "Stock check passed")
+            
+            // Check Firebase Auth status
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            android.util.Log.d("FirebaseOrders", "Current Firebase user: ${currentUser?.uid ?: "NOT AUTHENTICATED"}")
+            android.util.Log.d("FirebaseOrders", "Firebase Auth instance: ${com.google.firebase.auth.FirebaseAuth.getInstance()}")
+            
+            // For testing, allow order creation without authentication
+            if (currentUser == null) {
+                android.util.Log.w("FirebaseOrders", "⚠️ User not authenticated - proceeding anyway for testing")
+                // Don't return failure, continue with order creation
+            }
+            
+            // Save order to Firebase
+            android.util.Log.d("FirebaseOrders", "Preparing order data for Firebase...")
             val orderMap = mapOf(
                 "id" to orderWithId.id,
                 "customerId" to orderWithId.customerId,
@@ -48,81 +86,56 @@ class FirebaseOrdersRepository {
                 "trackingNumber" to orderWithId.trackingNumber,
                 "notes" to orderWithId.notes
             )
+            android.util.Log.d("FirebaseOrders", "Attempting to save order to Firebase path: orders/$orderId")
+            android.util.Log.d("FirebaseOrders", "Order data: $orderMap")
             
-            ordersRef.child(orderId.toString()).setValue(orderMap).await()
+            try {
+                ordersRef.child(orderId.toString()).setValue(orderMap).await()
+                android.util.Log.d("FirebaseOrders", "✅ Order successfully saved to Firebase with ID: $orderId")
+            } catch (e: Exception) {
+                android.util.Log.e("FirebaseOrders", "❌ Failed to save order to Firebase: ${e.message}")
+                android.util.Log.e("FirebaseOrders", "Exception details: ${e.javaClass.simpleName}")
+                throw e
+            }
+            
+            // Deduct stock for fulfilled orders
+            if (orderWithId.status !in listOf(OrderStatus.CANCELLED, OrderStatus.RETURNED)) {
+                deductOrderStock(orderWithId)
+            }
+            
             Result.success(orderWithId)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Get order by ID
-     */
     suspend fun getOrderById(orderId: Long): Result<Order?> {
         return try {
             val snapshot = ordersRef.child(orderId.toString()).get().await()
-            val order = snapshot.toOrder()
-            Result.success(order)
+            Result.success(snapshot.toOrder())
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Get all orders (admin/employee only)
-     */
     suspend fun getAllOrders(): Result<List<Order>> {
         return try {
-            println("DEBUG: Loading all orders from Firebase")
             val snapshot = ordersRef.get().await()
-            println("DEBUG: Orders snapshot exists: ${snapshot.exists()}")
-            println("DEBUG: Orders snapshot children count: ${snapshot.childrenCount}")
-            
-            val orders = snapshot.children.mapNotNull { childSnapshot ->
-                println("DEBUG: Processing order child: ${childSnapshot.key}")
-                val order = childSnapshot.toOrder()
-                if (order != null) {
-                    println("DEBUG: Successfully converted order: ${order.id}")
-                } else {
-                    println("DEBUG: Failed to convert order from snapshot: ${childSnapshot.key}")
-                }
-                order
-            }.sortedByDescending { it.orderDate }
-            
-            println("DEBUG: Successfully loaded ${orders.size} orders")
+            val orders = snapshot.children.mapNotNull { it.toOrder() }
+                .sortedByDescending { it.orderDate }
             Result.success(orders)
         } catch (e: Exception) {
-            println("DEBUG: Exception loading all orders: ${e.message}")
             Result.failure(e)
         }
     }
 
-    /**
-     * Get orders by customer ID
-     */
     suspend fun getOrdersByCustomerId(customerId: Long): Result<List<Order>> {
         return try {
-            println("DEBUG: Loading orders for customer ID: $customerId")
             val snapshot = ordersRef.orderByChild("customerId").equalTo(customerId.toDouble()).get().await()
-            println("DEBUG: Customer orders snapshot exists: ${snapshot.exists()}")
-            println("DEBUG: Customer orders snapshot children count: ${snapshot.childrenCount}")
-            
-            val orders = snapshot.children.mapNotNull { childSnapshot ->
-                println("DEBUG: Processing customer order child: ${childSnapshot.key}")
-                val order = childSnapshot.toOrder()
-                if (order != null) {
-                    println("DEBUG: Successfully converted customer order: ${order.id} for customer ${order.customerId}")
-                } else {
-                    println("DEBUG: Failed to convert customer order from snapshot: ${childSnapshot.key}")
-                }
-                order
-            }.sortedByDescending { it.orderDate }
-            
-            println("DEBUG: Successfully loaded ${orders.size} orders for customer $customerId")
+            val orders = snapshot.children.mapNotNull { it.toOrder() }
+                .sortedByDescending { it.orderDate }
             Result.success(orders)
         } catch (e: Exception) {
-            println("DEBUG: Exception loading orders for customer $customerId: ${e.message}")
             Result.failure(e)
         }
     }
@@ -193,14 +206,9 @@ class FirebaseOrdersRepository {
                         .child("quantity")
                         .setValue(restoredQuantity)
                         .await()
-                    
-                    println("DEBUG: Restored stock for product ${item.productId}: ${item.quantity} units (${currentQuantity} -> ${restoredQuantity})")
                 }
             }
-            
-            println("DEBUG: Successfully restored stock for order ${order.id}")
         } catch (e: Exception) {
-            println("ERROR: Failed to restore stock for order ${order.id}: ${e.message}")
             // Don't throw exception here - order status update should still succeed
         }
     }
@@ -224,14 +232,9 @@ class FirebaseOrdersRepository {
                         .child("quantity")
                         .setValue(deductedQuantity)
                         .await()
-                    
-                    println("DEBUG: Deducted stock for product ${item.productId}: ${item.quantity} units (${currentQuantity} -> ${deductedQuantity})")
                 }
             }
-            
-            println("DEBUG: Successfully deducted stock for order ${order.id}")
         } catch (e: Exception) {
-            println("ERROR: Failed to deduct stock for order ${order.id}: ${e.message}")
             // Don't throw exception here - order status update should still succeed
         }
     }
@@ -255,7 +258,7 @@ class FirebaseOrdersRepository {
      */
     suspend fun getRecentOrders(limit: Int = 10): Result<List<Order>> {
         return try {
-            val thirtyDaysAgo = System.currentTimeMillis() - (30 * 24 * 60 * 60 * 1000)
+            val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24L * 60L * 60L * 1000L)
             val snapshot = ordersRef.orderByChild("orderDate").startAt(thirtyDaysAgo.toDouble()).get().await()
             val orders = snapshot.children.mapNotNull { it.toOrder() }
                 .sortedByDescending { it.orderDate }
@@ -305,12 +308,20 @@ class FirebaseOrdersRepository {
     fun getAllOrdersFlow(): Flow<List<Order>> = callbackFlow {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val orders = snapshot.children.mapNotNull { it.toOrder() }
-                    .sortedByDescending { it.orderDate }
+                android.util.Log.d("FirebaseOrders", "Orders snapshot received: ${snapshot.childrenCount} orders")
+                val orders = snapshot.children.mapNotNull { 
+                    val order = it.toOrder()
+                    if (order == null) {
+                        android.util.Log.w("FirebaseOrders", "Failed to parse order: ${it.key}")
+                    }
+                    order
+                }.sortedByDescending { it.orderDate }
+                android.util.Log.d("FirebaseOrders", "Parsed ${orders.size} orders successfully")
                 trySend(orders)
             }
 
             override fun onCancelled(error: DatabaseError) {
+                android.util.Log.e("FirebaseOrders", "Orders listener cancelled: ${error.message}")
                 close(error.toException())
             }
         }
@@ -341,6 +352,31 @@ class FirebaseOrdersRepository {
     }
 
     /**
+     * Check stock availability for order items
+     */
+    private suspend fun checkStockAvailability(items: List<OrderItem>): Pair<Boolean, String> {
+        return try {
+            val productsRef = database.getReference("products")
+            
+            for (item in items) {
+                val productSnapshot = productsRef.child(item.productId.toString()).get().await()
+                if (productSnapshot.exists()) {
+                    val currentQuantity = productSnapshot.child("quantity").getValue(Int::class.java) ?: 0
+                    if (currentQuantity < item.quantity) {
+                        return Pair(false, "Product '${item.productName}' has insufficient stock. Available: $currentQuantity, Required: ${item.quantity}")
+                    }
+                } else {
+                    return Pair(false, "Product '${item.productName}' not found")
+                }
+            }
+            
+            Pair(true, "Stock available")
+        } catch (e: Exception) {
+            Pair(false, "Error checking stock: ${e.message}")
+        }
+    }
+
+    /**
      * Get next order ID
      */
     private suspend fun getNextOrderId(): Long {
@@ -360,33 +396,21 @@ class FirebaseOrdersRepository {
      */
     private fun DataSnapshot.toOrder(): Order? {
         return try {
-            println("DEBUG: Converting order snapshot: ${this.key}")
-            println("DEBUG: Order data: ${this.value}")
-            
             // Get ID with flexible type handling
             val id = child("id").getValue(Long::class.java) 
                 ?: child("id").getValue(Int::class.java)?.toLong()
                 ?: child("id").getValue(String::class.java)?.toLongOrNull()
-            if (id == null) {
-                println("DEBUG: Order conversion failed - missing or invalid id")
-                return null
-            }
+            if (id == null) return null
             
             // Get customer ID with flexible type handling
             val customerId = child("customerId").getValue(Long::class.java)
                 ?: child("customerId").getValue(Int::class.java)?.toLong()
                 ?: child("customerId").getValue(String::class.java)?.toLongOrNull()
-            if (customerId == null) {
-                println("DEBUG: Order conversion failed - missing or invalid customerId")
-                return null
-            }
+            if (customerId == null) return null
             
             // Get customer username
             val customerUsername = child("customerUsername").getValue(String::class.java) ?: ""
-            if (customerUsername.isEmpty()) {
-                println("DEBUG: Order conversion failed - missing customerUsername")
-                return null
-            }
+            if (customerUsername.isEmpty()) return null
             
             // Get total amount with flexible type handling
             val totalAmount = child("totalAmount").getValue(String::class.java)?.let { 
@@ -398,10 +422,7 @@ class FirebaseOrdersRepository {
             // Get status with flexible handling and default fallback
             val status = child("status").getValue(String::class.java)?.let { 
                 try { OrderStatus.valueOf(it) } 
-                catch (e: Exception) { 
-                    println("DEBUG: Invalid order status: $it, using PENDING as default")
-                    OrderStatus.PENDING
-                }
+                catch (e: Exception) { OrderStatus.PENDING }
             } ?: OrderStatus.PENDING
             
             // Get payment method with default fallback
@@ -455,7 +476,6 @@ class FirebaseOrdersRepository {
                         totalPrice = totalPrice
                     )
                 } catch (e: Exception) {
-                    println("DEBUG: Failed to convert order item: ${e.message}")
                     null
                 }
             }
