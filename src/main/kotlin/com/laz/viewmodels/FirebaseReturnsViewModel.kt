@@ -3,7 +3,7 @@ package com.laz.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laz.models.Return
-import com.laz.models.Sale
+import com.laz.models.Order
 import com.laz.repositories.FirebaseProductRepository
 import com.laz.repositories.FirebaseReturnsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -118,46 +118,49 @@ class FirebaseReturnsViewModel(
     }
 
     /**
-     * Process a return from a sale object
+     * Process a return from an order object
      * This is the main method used by the returns processing screen
      */
-    suspend fun processReturnFromSale(sale: Sale, reason: String): Boolean {
+    suspend fun processReturnFromOrder(order: Order, reason: String): Boolean {
         return try {
             _isLoading.value = true
-            println("DEBUG: Processing return for sale ID: ${sale.id}, product: ${sale.productName}")
+            println("DEBUG: Processing return for order ID: ${order.id}, customer: ${order.customerUsername}")
             
-            // Get the product from Firebase to update inventory
-            val productResult = firebaseProductRepository.getProductById(sale.productId)
-            val product = productResult.getOrNull()
-            if (product == null) {
-                _errorMessage.value = "Product not found for return"
-                return false
+            // Process return for each item in the order
+            order.items.forEach { orderItem ->
+                // Get the product from Firebase to update inventory
+                val productResult = firebaseProductRepository.getProductById(orderItem.productId)
+                val product = productResult.getOrNull()
+                if (product == null) {
+                    _errorMessage.value = "Product not found for return: ${orderItem.productName}"
+                    return@forEach
+                }
+                
+                // Update product quantity (add back returned items)
+                val updatedProduct = product.copy(quantity = product.quantity + orderItem.quantity)
+                println("DEBUG: Updating product ${product.name} from quantity ${product.quantity} to ${updatedProduct.quantity}")
+                val updateResult = firebaseProductRepository.updateProduct(updatedProduct)
+                
+                if (!updateResult.isSuccess) {
+                    _errorMessage.value = "Failed to update product inventory: ${updateResult.exceptionOrNull()?.message}"
+                    return@forEach
+                }
             }
             
-            // Update product quantity (add back returned items)
-            val updatedProduct = product.copy(quantity = product.quantity + sale.quantity)
-            println("DEBUG: Updating product ${product.name} from quantity ${product.quantity} to ${updatedProduct.quantity}")
-            val updateResult = firebaseProductRepository.updateProduct(updatedProduct)
+            // Create return record in Firebase
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val returnRecord = Return(
+                saleId = order.id,
+                reason = reason,
+                date = dateFormat.format(Date())
+            )
             
-            if (updateResult.isSuccess) {
-                // Create return record in Firebase
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                val returnRecord = Return(
-                    saleId = sale.id,
-                    reason = reason,
-                    date = dateFormat.format(Date())
-                )
-                
-                val returnResult = firebaseReturnsRepository.createReturn(returnRecord)
-                if (returnResult.isSuccess) {
-                    println("DEBUG: Return record created successfully for sale ID: ${sale.id}")
-                    true
-                } else {
-                    _errorMessage.value = "Failed to save return record: ${returnResult.exceptionOrNull()?.message}"
-                    false
-                }
+            val returnResult = firebaseReturnsRepository.createReturn(returnRecord)
+            if (returnResult.isSuccess) {
+                println("DEBUG: Return record created successfully for order ID: ${order.id}")
+                true
             } else {
-                _errorMessage.value = "Failed to update product inventory: ${updateResult.exceptionOrNull()?.message}"
+                _errorMessage.value = "Failed to save return record: ${returnResult.exceptionOrNull()?.message}"
                 false
             }
         } catch (e: Exception) {

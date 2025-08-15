@@ -146,6 +146,7 @@ fun FirebaseLazStoreApp(
                         onNavigateToProductManagement = { navController.navigate(Screen.ProductManagement.route) },
                         onNavigateToSalesProcessing = { navController.navigate(Screen.SalesProcessing.route) },
                         onNavigateToReturnsProcessing = { navController.navigate(Screen.ReturnsProcessing.route) },
+                        onNavigateToOrderManagement = { navController.navigate(Screen.OrderManagement.route) },
                         onNavigateToSalesOverview = { navController.navigate(Screen.SalesOverview.route) },
                         onNavigateToChatManagement = { navController.navigate(Screen.EmployeeChatManagement.route) },
                         onNavigateToProfile = { navController.navigate(Screen.ProfileScreen.route) }
@@ -211,11 +212,13 @@ fun FirebaseLazStoreApp(
                 )
             }
             
-            // Sales Overview Screen - Analytics dashboard
+            // Sales Overview Screen - Analytics dashboard (now using orders)
             composable(Screen.SalesOverview.route) {
-                FirebaseSalesOverviewScreen(
-                    onBack = { navController.popBackStack() }
-                )
+                // TODO: Replace with order-based analytics screen
+                // For now, navigate back since FirebaseSalesOverviewScreen was removed
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
             }
             
             // Sales Processing Screen - Point of Sale

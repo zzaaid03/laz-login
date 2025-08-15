@@ -31,11 +31,12 @@ fun EmployeeDashboardScreen(
     onNavigateToProductManagement: () -> Unit = {},
     onNavigateToSalesProcessing: () -> Unit = {},
     onNavigateToReturnsProcessing: () -> Unit = {},
+    onNavigateToOrderManagement: () -> Unit = {},
     onNavigateToSalesOverview: () -> Unit = {},
     onNavigateToChatManagement: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
-    salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
+    ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
     // Collect state from ViewModels
@@ -214,11 +215,11 @@ fun EmployeeDashboardScreen(
                         ) { onNavigateToReturnsProcessing() }
                         
                         ActionCard(
-                            title = "Customer Support",
-                            description = "Manage customer chats",
-                            icon = Icons.Default.SupportAgent,
+                            title = "Order Management",
+                            description = "Manage customer orders",
+                            icon = Icons.Default.Assignment,
                             modifier = Modifier.weight(1f)
-                        ) { onNavigateToChatManagement() }
+                        ) { onNavigateToOrderManagement() }
                     }
                     
                     Row(
@@ -226,17 +227,23 @@ fun EmployeeDashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ActionCard(
-                            title = "Reports",
-                            description = "View sales reports",
-                            icon = Icons.Default.Assessment,
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigateToSalesOverview() }
-                        
+                            title = "Customer Support",
+                            description = "Manage customer chats",
+                            icon = Icons.Default.SupportAgent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { onNavigateToChatManagement() }
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Reports access removed for employees - Admin only feature
                         ActionCard(
                             title = "Settings",
                             description = "System settings",
                             icon = Icons.Default.Settings,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth()
                         ) { onNavigateToProfile() }
                     }
                 }

@@ -18,7 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.laz.models.Sale
+import com.laz.models.Order
+import com.laz.models.OrderStatus
 import com.laz.viewmodels.*
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -29,34 +30,31 @@ import java.util.*
 @Composable
 fun FirebaseReturnsProcessingScreen(
     onBack: () -> Unit,
-    salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
+    ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
-    val sales by salesViewModel.sales.collectAsState()
-    val isLoading by salesViewModel.isLoading.collectAsState()
-    val errorMessage by salesViewModel.errorMessage.collectAsState()
+    // Get delivered orders for returns processing
+    val allOrders by ordersViewModel.orders.collectAsState()
+    val orders = allOrders.filter { it.status == OrderStatus.DELIVERED }
+    val isLoading by ordersViewModel.isLoading.collectAsState()
+    val errorMessage by ordersViewModel.errorMessage.collectAsState()
     
-    var selectedSale by remember { mutableStateOf<Sale?>(null) }
+    var selectedOrder by remember { mutableStateOf<Order?>(null) }
     var returnReason by remember { mutableStateOf("") }
     var showReturnDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
-    var processedReturn by remember { mutableStateOf<Sale?>(null) }
+    var processedReturn by remember { mutableStateOf<Order?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
     
     val scope = rememberCoroutineScope()
 
-    // Filter non-returned sales for returns processing
-    val returnableSales = remember(sales) {
-        sales.filter { !it.isReturned }
+    // Load orders when screen opens
+    LaunchedEffect(Unit) {
+        ordersViewModel.loadOrders()
     }
 
-    // Load sales when screen opens
-    LaunchedEffect(Unit) {
-        scope.launch {
-            salesViewModel.refresh()
-        }
-    }
+
 
     Column(
         modifier = Modifier
@@ -91,7 +89,7 @@ fun FirebaseReturnsProcessingScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
-            } else if (returnableSales.isEmpty()) {
+            } else if (orders.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -121,12 +119,12 @@ fun FirebaseReturnsProcessingScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(returnableSales) { sale ->
-                        ReturnableSaleCard(
-                            sale = sale,
-                            isSelected = selectedSale?.id == sale.id,
+                    items(orders) { order ->
+                        ReturnableOrderCard(
+                            order = order,
+                            isSelected = selectedOrder?.id == order.id,
                             onSelect = {
-                                selectedSale = sale
+                                selectedOrder = order
                                 showReturnDialog = true
                             }
                         )
@@ -137,16 +135,16 @@ fun FirebaseReturnsProcessingScreen(
     }
 
     // Return Processing Dialog
-    selectedSale?.let { sale ->
+    selectedOrder?.let { order ->
         if (showReturnDialog) {
             ReturnProcessingDialog(
-                sale = sale,
+                order = order,
                 returnReason = returnReason,
                 onReasonChange = { returnReason = it },
                 isProcessing = isProcessing,
                 onDismiss = {
                     showReturnDialog = false
-                    selectedSale = null
+                    selectedOrder = null
                     returnReason = ""
                 },
                 onConfirm = {
@@ -154,23 +152,17 @@ fun FirebaseReturnsProcessingScreen(
                         isProcessing = true
                         try {
                             // Process return using the returns ViewModel
-                            // This will: 1) Create return record, 2) Update product inventory, 3) Mark sale as returned
-                            val returnSuccess = returnsViewModel.processReturnFromSale(sale, returnReason)
+                            // This will: 1) Create return record, 2) Update product inventory, 3) Update order status
+                            val returnSuccess = returnsViewModel.processReturnFromOrder(order, returnReason)
                             
                             if (returnSuccess) {
-                                // Update sale as returned
-                                val updatedSale = sale.copy(isReturned = true)
-                                val saleUpdateSuccess = salesViewModel.updateSale(updatedSale)
+                                // Update order status to returned
+                                ordersViewModel.updateOrderStatus(order.id, com.laz.models.OrderStatus.RETURNED)
                                 
-                                if (saleUpdateSuccess) {
-                                    processedReturn = sale
-                                    showReturnDialog = false
-                                    showSuccessDialog = true
-                                    salesViewModel.refresh() // Refresh the sales list
-                                } else {
-                                    showReturnDialog = false
-                                    showErrorDialog = true
-                                }
+                                processedReturn = order
+                                showReturnDialog = false
+                                showSuccessDialog = true
+                                ordersViewModel.loadOrders() // Refresh the orders list
                             } else {
                                 showReturnDialog = false
                                 showErrorDialog = true
@@ -181,7 +173,7 @@ fun FirebaseReturnsProcessingScreen(
                             showErrorDialog = true
                         } finally {
                             isProcessing = false
-                            selectedSale = null
+                            selectedOrder = null
                             returnReason = ""
                         }
                     }
@@ -191,10 +183,10 @@ fun FirebaseReturnsProcessingScreen(
     }
 
     // Success Dialog
-    processedReturn?.let { sale ->
+    processedReturn?.let { order ->
         if (showSuccessDialog) {
             ReturnSuccessDialog(
-                sale = sale,
+                order = order,
                 onDismiss = {
                     showSuccessDialog = false
                     processedReturn = null
@@ -250,8 +242,8 @@ fun ReturnsProcessingHeader(onBack: () -> Unit) {
 }
 
 @Composable
-fun ReturnableSaleCard(
-    sale: Sale,
+fun ReturnableOrderCard(
+    order: Order,
     isSelected: Boolean,
     onSelect: () -> Unit
 ) {
@@ -277,13 +269,13 @@ fun ReturnableSaleCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = sale.productName,
+                        text = "Order #${order.id}",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Sold by: ${sale.userName}",
+                        text = "Customer: ${order.customerUsername}",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
@@ -291,13 +283,13 @@ fun ReturnableSaleCard(
                 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = formatCurrency(sale.productPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO),
+                        text = formatCurrency(order.totalAmount),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Qty: ${sale.quantity}",
+                        text = "Items: ${order.items.size}",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
@@ -310,7 +302,7 @@ fun ReturnableSaleCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Sale Date: ${sale.date}",
+                    text = "Order Date: ${java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date(order.orderDate))}",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -334,7 +326,7 @@ fun ReturnableSaleCard(
 
 @Composable
 fun ReturnProcessingDialog(
-    sale: Sale,
+    order: Order,
     returnReason: String,
     onReasonChange: (String) -> Unit,
     isProcessing: Boolean,
@@ -368,20 +360,20 @@ fun ReturnProcessingDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = sale.productName,
+                            text = "Order #${order.id}",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Price: ${formatCurrency(sale.productPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO)}",
+                            text = "Customer: ${order.customerUsername}",
                             fontSize = 14.sp
                         )
                         Text(
-                            text = "Quantity: ${sale.quantity}",
+                            text = "Items: ${order.items.size}",
                             fontSize = 14.sp
                         )
                         Text(
-                            text = "Total: ${formatCurrency((sale.productPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO) * sale.quantity.toBigDecimal())}",
+                            text = "Total: ${formatCurrency(order.totalAmount)}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -437,7 +429,7 @@ fun ReturnProcessingDialog(
 
 @Composable
 fun ReturnSuccessDialog(
-    sale: Sale,
+    order: Order,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -457,17 +449,17 @@ fun ReturnSuccessDialog(
         },
         text = { 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("The following item has been successfully returned:")
+                Text("The following order has been successfully returned:")
                 Text(
-                    text = "• ${sale.productName}",
+                    text = "• Order #${order.id}",
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "• Quantity: ${sale.quantity}",
+                    text = "• Customer: ${order.customerUsername}",
                     fontSize = 14.sp
                 )
                 Text(
-                    text = "• Refund Amount: ${formatCurrency((sale.productPrice.toBigDecimalOrNull() ?: BigDecimal.ZERO) * sale.quantity.toBigDecimal())}",
+                    text = "• Refund Amount: ${formatCurrency(order.totalAmount)}",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold

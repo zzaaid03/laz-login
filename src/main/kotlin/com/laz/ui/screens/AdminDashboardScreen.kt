@@ -30,6 +30,7 @@ import java.util.*
 /**
  * Rich Admin Dashboard Screen
  * Displays comprehensive statistics, analytics, and management actions
+ * UPDATED: Now uses Order-based architecture instead of old Sales logic
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +46,6 @@ fun AdminDashboardScreen(
     onNavigateToOrderManagement: () -> Unit,
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     userViewModel: SecureFirebaseUserViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
-    salesViewModel: FirebaseSalesViewModel = viewModel(factory = FirebaseServices.viewModelFactory),
     returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.viewModelFactory),
     ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
@@ -54,44 +54,36 @@ fun AdminDashboardScreen(
     val products by productViewModel.products.collectAsState()
     val errorMessage by userViewModel.errorMessage.collectAsState()
     
-    // Collect real Firebase sales and returns data
-    val sales by salesViewModel.sales.collectAsState()
-    val totalSalesAmount by salesViewModel.totalSalesAmount.collectAsState()
-    val salesCount by salesViewModel.salesCount.collectAsState()
+    // Collect real Firebase orders and returns data
     val returns by returnsViewModel.returns.collectAsState()
     val returnsCount by returnsViewModel.returnsCount.collectAsState()
-    val salesErrorMessage by salesViewModel.errorMessage.collectAsState()
     val returnsErrorMessage by returnsViewModel.errorMessage.collectAsState()
     
     // Collect orders data
     val orders by ordersViewModel.orders.collectAsState()
-    val ordersCount by ordersViewModel.ordersCount.collectAsState()
-    val totalOrdersAmount by ordersViewModel.totalOrdersAmount.collectAsState()
     val ordersErrorMessage by ordersViewModel.errorMessage.collectAsState()
     
     // Load data on screen start
     LaunchedEffect(Unit) {
         userViewModel.loadUsers()
         productViewModel.loadProducts()
-        salesViewModel.loadAllSales()
         returnsViewModel.loadAllReturns()
         ordersViewModel.loadOrders()
     }
     
-    // Calculate statistics from loaded data
-    val totalUsers = userStats.totalUsers
+    // Calculate statistics
     val totalProducts = products.size
     val lowStockProducts = products.filter { it.quantity <= 5 }.size
     val totalEmployees = userStats.employeeCount
     
-    // Calculate today's sales from real Firebase data
-    val todaysSales = remember(sales) {
+    // Calculate today's sales from real Firebase orders data
+    val todaysSales = remember(orders) {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        sales.filter { sale ->
-            sale.date.startsWith(today)
-        }.sumOf { sale ->
-            // Parse price from "JOD XX.XX" format
-            sale.productPrice.replace("JOD ", "").toDoubleOrNull() ?: 0.0
+        orders.filter { order ->
+            order.status == com.laz.models.OrderStatus.DELIVERED && 
+            order.orderDate.toString().startsWith(today)
+        }.sumOf { order ->
+            order.totalAmount.toDouble()
         }
     }
     
@@ -107,38 +99,18 @@ fun AdminDashboardScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.AdminPanelSettings,
-                            contentDescription = "Admin",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            user.username,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Button(
-                            onClick = onLogout,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text("Logout")
-                        }
+                    IconButton(onClick = onLogout) {
+                        Icon(Icons.Default.Logout, contentDescription = "Logout")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             )
         }
     ) { paddingValues ->
@@ -151,100 +123,71 @@ fun AdminDashboardScreen(
         ) {
             // Welcome Section
             item {
-                WelcomeSection(user = user)
+                WelcomeSection(user)
             }
             
-            // Statistics Overview
+            // Statistics Cards Row
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
-                    Text(
-                        "Real-time Dashboard",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+                    item {
+                        StatCard(
+                            title = "Total Products",
+                            value = totalProducts.toString(),
+                            icon = Icons.Default.Inventory,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.width(160.dp)
+                        ) { onNavigateToProductManagement() }
+                    }
                     
-                    // Live indicator
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(
-                                    Color.Green,
-                                    shape = androidx.compose.foundation.shape.CircleShape
-                                )
-                        )
-                        Text(
-                            "Live",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Green,
-                            fontWeight = FontWeight.Medium
-                        )
+                    item {
+                        StatCard(
+                            title = "Low Stock",
+                            value = lowStockProducts.toString(),
+                            icon = Icons.Default.Warning,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.width(160.dp)
+                        ) { onNavigateToProductManagement() }
+                    }
+                    
+                    item {
+                        StatCard(
+                            title = "Employees",
+                            value = totalEmployees.toString(),
+                            icon = Icons.Default.People,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.width(160.dp)
+                        ) { onNavigateToUserManagement() }
+                    }
+                    
+                    item {
+                        StatCard(
+                            title = "Returns",
+                            value = returnsCount.toString(),
+                            icon = Icons.AutoMirrored.Filled.AssignmentReturn,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.width(160.dp)
+                        ) { onNavigateToReturnsProcessing() }
                     }
                 }
             }
             
-            // Top Row Statistics
+            // Today's Sales Card
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     StatCard(
                         title = "Total Sales",
-                        value = "JOD ${String.format("%.2f", totalSalesAmount)}",
+                        value = "JOD ${String.format("%.2f", todaysSales)}",
                         icon = Icons.Default.AttachMoney,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToSalesOverview() }
                     
-                    StatCard(
-                        title = "Products",
-                        value = totalProducts.toString(),
-                        icon = Icons.Default.Inventory,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.weight(1f)
-                    ) { onNavigateToProductManagement() }
-                }
-            }
-            
-            // Bottom Row Statistics
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    StatCard(
-                        title = "Low Stock",
-                        value = lowStockProducts.toString(),
-                        icon = Icons.Default.Warning,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.weight(1f)
-                    ) { onNavigateToProductManagement() }
-                    
-                    StatCard(
-                        title = "Employees",
-                        value = totalEmployees.toString(),
-                        icon = Icons.Default.People,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.weight(1f)
-                    ) { onNavigateToUserManagement() }
-                }
-            }
-            
-            // Second Row Statistics
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
                     StatCard(
                         title = "Today's Sales",
                         value = "JOD ${String.format("%.2f", todaysSales)}",
@@ -252,126 +195,75 @@ fun AdminDashboardScreen(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
                     ) { onNavigateToSalesOverview() }
-                    
-                    StatCard(
-                        title = "Returns",
-                        value = returnsCount.toString(),
-                        icon = Icons.AutoMirrored.Filled.AssignmentReturn,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.weight(1f)
-                    ) { onNavigateToReturnsProcessing() }
                 }
             }
             
-            // Third Row Statistics - Orders
+            // Quick Actions Section
+            item {
+                Text(
+                    "Quick Actions",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    StatCard(
-                        title = "Total Orders",
-                        value = ordersCount.toString(),
-                        icon = Icons.Default.Assignment,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f)
-                    ) { onNavigateToOrderManagement() }
+                    ActionCard(
+                        title = "Process Sale",
+                        description = "Create new sale transaction",
+                        icon = Icons.Default.PointOfSale,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToSalesProcessing
+                    )
                     
-                    StatCard(
-                        title = "Orders Value",
-                        value = "JOD ${String.format("%.2f", totalOrdersAmount)}",
-                        icon = Icons.Default.MonetizationOn,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.weight(1f)
-                    ) { onNavigateToOrderManagement() }
+                    ActionCard(
+                        title = "Manage Orders",
+                        description = "View and manage all orders",
+                        icon = Icons.Default.ShoppingCart,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToOrderManagement
+                    )
                 }
             }
             
-            // Admin Actions Section
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ActionCard(
+                        title = "Process Returns",
+                        description = "Handle product returns",
+                        icon = Icons.AutoMirrored.Filled.AssignmentReturn,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToReturnsProcessing
+                    )
+                    
+                    ActionCard(
+                        title = "User Management",
+                        description = "Manage employees and customers",
+                        icon = Icons.Default.People,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToUserManagement
+                    )
+                }
+            }
+            
+            // Recent Sales List - FIXED: Now uses Order-based logic
             item {
                 Text(
-                    "Admin Actions",
+                    "Recent Sales",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
             
-            // Action Cards Grid
-            item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ActionCard(
-                            title = "Product Management",
-                            description = "Manage inventory, add/edit products",
-                            icon = Icons.Default.Inventory,
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigateToProductManagement() }
-                        
-                        ActionCard(
-                            title = "User Management",
-                            description = "Manage user accounts and roles",
-                            icon = Icons.Default.People,
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigateToUserManagement() }
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ActionCard(
-                            title = "Sales Processing",
-                            description = "Process new sales",
-                            icon = Icons.Default.PointOfSale,
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigateToSalesProcessing() }
-                        
-                        ActionCard(
-                            title = "Returns Processing",
-                            description = "Process customer returns",
-                            icon = Icons.Filled.AssignmentReturn,
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigateToReturnsProcessing() }
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ActionCard(
-                            title = "Sales Overview",
-                            description = "View sales analytics and reports",
-                            icon = Icons.Default.Analytics,
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigateToSalesOverview() }
-                        
-                        ActionCard(
-                            title = "Order Management",
-                            description = "Manage customer orders and fulfillment",
-                            icon = Icons.Default.Assignment,
-                            modifier = Modifier.weight(1f)
-                        ) { onNavigateToOrderManagement() }
-                    }
-                }
-            }
-            
-            // Recent Sales Activity Section
-            item {
-                Text(
-                    "Recent Sales Activity",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-            
-            // Recent Sales List
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -382,15 +274,16 @@ fun AdminDashboardScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        if (sales.isEmpty()) {
+                        val deliveredOrders = orders.filter { it.status == com.laz.models.OrderStatus.DELIVERED }
+                        if (deliveredOrders.isEmpty()) {
                             Text(
                                 "No sales recorded yet",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
-                            // Show last 3 sales
-                            sales.take(3).forEach { sale ->
+                            // Show last 3 delivered orders (sales)
+                            deliveredOrders.take(3).forEach { order ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -399,24 +292,24 @@ fun AdminDashboardScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            "Sale #${sale.id.toString().take(8)}",
+                                            "Order #${order.id.toString().take(8)}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Medium
                                         )
                                         Text(
-                                            sale.date.take(16).replace("T", " "),
+                                            order.orderDate.toString().take(16).replace("T", " "),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     Text(
-                                        sale.productPrice,
+                                        "JOD ${order.totalAmount}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
-                                if (sale != sales.take(3).last()) {
+                                if (order != deliveredOrders.take(3).last()) {
                                     HorizontalDivider(
                                         modifier = Modifier.padding(vertical = 4.dp),
                                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -424,13 +317,13 @@ fun AdminDashboardScreen(
                                 }
                             }
                             
-                            if (sales.size > 3) {
+                            if (deliveredOrders.size > 3) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 TextButton(
                                     onClick = { onNavigateToSalesOverview() },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text("View All Sales (${sales.size})")
+                                    Text("View All Sales (${deliveredOrders.size})")
                                 }
                             }
                         }
@@ -448,7 +341,6 @@ fun AdminDashboardScreen(
                 )
             }
             
-            // Recent Orders List
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -459,15 +351,16 @@ fun AdminDashboardScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        if (orders.isEmpty()) {
+                        val recentOrders = orders.take(5)
+                        if (recentOrders.isEmpty()) {
                             Text(
                                 "No orders recorded yet",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
-                            // Show last 3 orders
-                            orders.take(3).forEach { order ->
+                            // Show last 5 orders
+                            recentOrders.forEach { order ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -476,24 +369,39 @@ fun AdminDashboardScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            "Order #${order.id}",
+                                            "Order #${order.id.toString().take(8)}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Medium
                                         )
                                         Text(
-                                            "${order.customerUsername} • ${order.status.name}",
+                                            order.orderDate.toString().take(16).replace("T", " "),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                    Text(
-                                        "JOD ${String.format("%.2f", order.totalAmount)}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                                    Column(
+                                        horizontalAlignment = Alignment.End
+                                    ) {
+                                        Text(
+                                            "JOD ${order.totalAmount}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            order.status.name,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = when (order.status) {
+                                                com.laz.models.OrderStatus.DELIVERED -> MaterialTheme.colorScheme.primary
+                                                com.laz.models.OrderStatus.PENDING -> MaterialTheme.colorScheme.secondary
+                                                com.laz.models.OrderStatus.CANCELLED -> MaterialTheme.colorScheme.error
+                                                com.laz.models.OrderStatus.RETURNED -> MaterialTheme.colorScheme.outline
+                                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            }
+                                        )
+                                    }
                                 }
-                                if (order != orders.take(3).last()) {
+                                if (order != recentOrders.last()) {
                                     HorizontalDivider(
                                         modifier = Modifier.padding(vertical = 4.dp),
                                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
@@ -501,7 +409,7 @@ fun AdminDashboardScreen(
                                 }
                             }
                             
-                            if (orders.size > 3) {
+                            if (orders.size > 5) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 TextButton(
                                     onClick = { onNavigateToOrderManagement() },
@@ -515,117 +423,7 @@ fun AdminDashboardScreen(
                 }
             }
             
-            // Recent Sales Activity Section
-            item {
-                Text(
-                    "Recent Sales Activity",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-            
-            // Recent Sales List
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        if (sales.isEmpty()) {
-                            Text(
-                                "No sales recorded yet",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            // Show last 3 sales
-                            sales.take(3).forEach { sale ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column {
-                                        Text(
-                                            "Sale #${sale.id.toString().take(8)}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                        Text(
-                                            sale.date.take(16).replace("T", " "),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Text(
-                                        sale.productPrice,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                if (sale != sales.take(3).last()) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(vertical = 4.dp),
-                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                                    )
-                                }
-                            }
-                            
-                            if (sales.size > 3) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                TextButton(
-                                    onClick = { onNavigateToSalesOverview() },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("View All Sales (${sales.size})")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Error handling
-            errorMessage?.let { error ->
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Text(
-                            text = error,
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-            }
-            
-            // Sales and Returns error handling
-            salesErrorMessage?.let { error ->
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Text(
-                            text = "Sales Error: $error",
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-            }
-            
+            // Returns error handling
             returnsErrorMessage?.let { error ->
                 item {
                     Card(
@@ -634,7 +432,7 @@ fun AdminDashboardScreen(
                         )
                     ) {
                         Text(
-                            text = "Returns Error: $error",
+                            "Returns Error: $error",
                             modifier = Modifier.padding(16.dp),
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -642,6 +440,7 @@ fun AdminDashboardScreen(
                 }
             }
             
+            // Orders error handling
             ordersErrorMessage?.let { error ->
                 item {
                     Card(
@@ -650,7 +449,24 @@ fun AdminDashboardScreen(
                         )
                     ) {
                         Text(
-                            text = "Orders Error: $error",
+                            "Orders Error: $error",
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            
+            // General error handling
+            errorMessage?.let { error ->
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Text(
+                            "Error: $error",
                             modifier = Modifier.padding(16.dp),
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -670,18 +486,18 @@ private fun WelcomeSection(user: User) {
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(20.dp)
         ) {
             Text(
-                text = "Welcome back, ${user.username}!",
-                style = MaterialTheme.typography.headlineSmall,
+                "Welcome back, ${user.username}!",
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Text(
-                text = "Role: ADMIN",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                "Here's your store overview for today",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
             )
         }
     }
@@ -707,23 +523,30 @@ private fun StatCard(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = color,
-                modifier = Modifier.size(32.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(color.copy(alpha = 0.2f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = value,
+                value,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = color
             )
             Text(
-                text = title,
+                title,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -742,28 +565,25 @@ private fun ActionCard(
         onClick = onClick,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.padding(16.dp)
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = title,
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(32.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = title,
+                title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                fontWeight = FontWeight.Bold
             )
             Text(
-                text = description,
+                description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

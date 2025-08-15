@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -93,6 +94,211 @@ data class ProductUiState(
     val isLoading: Boolean = false,
     val error: String? = null
 )
+
+// Define a CompositionLocal for the current user role
+val LocalUserRole = staticCompositionLocalOf<String?> { null }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EmployeeProductManagementScreen(
+    productViewModel: SecureFirebaseProductViewModel,
+    userRole: String?,
+    onBackClick: () -> Unit
+) {
+    val products by productViewModel.products.collectAsState()
+    val isLoading by productViewModel.isLoading.collectAsState()
+    val errorMessage by productViewModel.errorMessage.collectAsState()
+    
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedProduct by remember { mutableStateOf<Product?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        productViewModel.loadProducts()
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Product Management") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                actions = {
+                    // Only show Add button for Admin
+                    if (userRole == "ADMIN") {
+                        IconButton(onClick = { showAddDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add Product"
+                            )
+                        }
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (products.isEmpty() && !isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Inventory,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = "No products available",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                            if (userRole == "ADMIN") {
+                                Text(
+                                    text = "Add your first product to get started",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                items(products) { product ->
+                    ProductItemCard(
+                        product = product,
+                        onEditClick = if (userRole == "ADMIN") {
+                            {
+                                selectedProduct = product
+                                showEditDialog = true
+                            }
+                        } else null,
+                        onDeleteClick = if (userRole == "ADMIN") {
+                            {
+                                selectedProduct = product
+                                showDeleteDialog = true
+                            }
+                        } else null
+                    )
+                }
+            }
+            
+            if (isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+        }
+    }
+
+    // Add Product Dialog
+    if (showAddDialog) {
+        ProductFormDialogWithImage(
+            onDismiss = { showAddDialog = false },
+            onSave = { newProduct ->
+                coroutineScope.launch {
+                    productViewModel.addProduct(newProduct)
+                    showAddDialog = false
+                }
+            }
+        )
+    }
+
+    // Edit Product Dialog
+    if (showEditDialog && selectedProduct != null) {
+        ProductFormDialogWithImage(
+            product = selectedProduct,
+            isEditing = true,
+            onDismiss = { 
+                showEditDialog = false
+                selectedProduct = null
+            },
+            onSave = { updatedProduct ->
+                coroutineScope.launch {
+                    productViewModel.updateProduct(updatedProduct)
+                    showEditDialog = false
+                    selectedProduct = null
+                }
+            }
+        )
+    }
+
+    // Delete Product Confirmation Dialog
+    if (showDeleteDialog && selectedProduct != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                selectedProduct = null
+            },
+            title = {
+                Text("Delete Product")
+            },
+            text = {
+                Text("Are you sure you want to delete \"${selectedProduct!!.name}\"? This action cannot be undone.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            productViewModel.deleteProduct(selectedProduct!!.id)
+                            showDeleteDialog = false
+                            selectedProduct = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        selectedProduct = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Error handling
+    errorMessage?.let { error ->
+        LaunchedEffect(error) {
+            // Handle error display - could show a snackbar or dialog
+        }
+    }
+}
 
 // Simple tab indicator - removing complex offset function
 @Composable
@@ -175,111 +381,27 @@ private fun ProductItem(
                     // Admin can edit, delete, and update inventory
                     IconButton(onClick = { onInventoryClick(product) }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            imageVector = Icons.Default.Inventory,
+                            contentDescription = "Inventory"
                         )
                     }
-                },
-                actions = {
-                    // Only show Add button for Admin
-                    if (userRole == "ADMIN") {
-                        IconButton(onClick = { showAddDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add Product"
-                            )
-                        }
+                    
+                    IconButton(onClick = { onEditClick(product) }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Product"
+                        )
                     }
-                }
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (products.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Inventory,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                            Text(
-                                text = "No products available",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
-                            if (userRole == "ADMIN") {
-                                Text(
-                                    text = "Add your first product to get started",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                )
-                            }
-                        }
+                    
+                    IconButton(onClick = { onDeleteClick(product) }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Product"
+                        )
                     }
-                }
-            } else {
-                items(products) { product ->
-                    ProductItemCard(
-                        product = product,
-                        onEditClick = if (userRole == "ADMIN") {
-                            {
-                                selectedProduct = product
-                                showEditDialog = true
-                            }
-                        } else null
-                    )
                 }
             }
         }
-    }
-
-    // Add Product Dialog
-    if (showAddDialog) {
-        ProductFormDialogWithImage(
-            onDismiss = { showAddDialog = false },
-            onSave = { newProduct ->
-                coroutineScope.launch {
-                    productViewModel.addProduct(newProduct)
-                    showAddDialog = false
-                }
-            }
-        )
-    }
-
-    // Edit Product Dialog
-    if (showEditDialog && selectedProduct != null) {
-        ProductFormDialogWithImage(
-            product = selectedProduct,
-            isEditing = true,
-            onDismiss = { 
-                showEditDialog = false
-                selectedProduct = null
-            },
-            onSave = { updatedProduct ->
-                coroutineScope.launch {
-                    productViewModel.updateProduct(updatedProduct)
-                    showEditDialog = false
-                    selectedProduct = null
-                }
-            }
-        )
     }
 }
 
@@ -287,6 +409,7 @@ private fun ProductItem(
 fun ProductItemCard(
     product: Product,
     onEditClick: (() -> Unit)?,
+    onDeleteClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -328,12 +451,22 @@ fun ProductItemCard(
                 )
             }
             
-            // Edit Button (Admin only)
+            // Admin Action Buttons
             if (onEditClick != null) {
                 IconButton(onClick = onEditClick) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit Product"
+                    )
+                }
+            }
+            
+            if (onDeleteClick != null) {
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Product",
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
             }

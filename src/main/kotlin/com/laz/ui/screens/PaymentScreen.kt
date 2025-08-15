@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.laz.models.*
 import com.laz.viewmodels.*
+import com.laz.ui.theme.*
+import com.laz.ui.components.OrderReceiptDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -367,46 +369,15 @@ fun PaymentScreen(
         }
     }
 
-    // Success Dialog
+    // Receipt Dialog - Show receipt instead of generic success message
     if (showSuccessDialog && createdOrder != null) {
-        AlertDialog(
-            onDismissRequest = { },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF4CAF50)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Order Placed Successfully!")
-                }
-            },
-            text = {
-                Column {
-                    Text("Your order has been placed successfully.")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Order ID: ${createdOrder!!.id}",
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text("Status: ${createdOrder!!.status.displayName}")
-                    Text("Total: JOD %.2f".format(createdOrder!!.totalAmount))
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showSuccessDialog = false
-                        // Clear cart and navigate
-                        cartViewModel.clearCart()
-                        onPaymentSuccess(createdOrder!!)
-                    }
-                ) {
-                    Text("Continue")
-                }
+        OrderReceiptDialog(
+            order = createdOrder!!,
+            onDismiss = {
+                showSuccessDialog = false
+                // Clear cart and navigate
+                cartViewModel.clearCart()
+                onPaymentSuccess(createdOrder!!)
             }
         )
     }
