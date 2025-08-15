@@ -321,33 +321,51 @@ private fun ProductItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(8.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier.padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Product Image
+            ProductImageDisplay(
+                imageUrl = product.imageUrl,
+                modifier = Modifier.padding(end = 16.dp),
+                size = 80
+            )
+            
+            // Product Details
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = product.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                // Stock status indicator
-                val stockStatusColor = when {
-                    product.quantity <= 0 -> MaterialTheme.colorScheme.error
-                    product.quantity <= LOW_STOCK_THRESHOLD -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.primary
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = product.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    // Stock status indicator
+                    val stockStatusColor = when {
+                        product.quantity <= 0 -> MaterialTheme.colorScheme.error
+                        product.quantity <= LOW_STOCK_THRESHOLD -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    
+                    Text(
+                        text = if (product.quantity > 0) "${product.quantity} in stock" else "Out of stock",
+                        color = stockStatusColor,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
-                
-                Text(
-                    text = if (product.quantity > 0) "${product.quantity} in stock" else "Out of stock",
-                    color = stockStatusColor,
-                    style = MaterialTheme.typography.bodyMedium
-                )
             }
+        }
+        
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp)
+        ) {
             
             Spacer(modifier = Modifier.height(8.dp))
             
