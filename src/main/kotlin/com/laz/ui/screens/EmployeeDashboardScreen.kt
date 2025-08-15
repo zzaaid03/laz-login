@@ -3,6 +3,7 @@ package com.laz.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,27 +30,21 @@ fun EmployeeDashboardScreen(
     onNavigateBack: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToProductManagement: () -> Unit = {},
-    onNavigateToSalesProcessing: () -> Unit = {},
+    onNavigateToPointOfSale: () -> Unit = {},
     onNavigateToReturnsProcessing: () -> Unit = {},
     onNavigateToOrderManagement: () -> Unit = {},
-    onNavigateToSalesOverview: () -> Unit = {},
     onNavigateToChatManagement: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
-    productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
-    ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
-    returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
+    productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
     // Collect state from ViewModels
     val products by productViewModel.products.collectAsState()
-    val isLoading by productViewModel.isLoading.collectAsState()
     val errorMessage by productViewModel.errorMessage.collectAsState()
     
     // Calculate statistics
     val totalProducts = products.size
     val lowStockProducts = products.filter { it.quantity <= 5 }.size
     val outOfStockProducts = products.filter { it.quantity == 0 }.size
-    val todaysSales = remember { mutableStateOf(850.75) } // Placeholder - will be replaced with Firebase data
-    val totalReturns = remember { mutableStateOf(3) } // Placeholder
     
     // Load data on screen start
     LaunchedEffect(Unit) {
@@ -68,7 +63,7 @@ fun EmployeeDashboardScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -160,12 +155,12 @@ fun EmployeeDashboardScreen(
                     ) { onNavigateToProductManagement() }
                     
                     StatCard(
-                        title = "Today's Sales",
-                        value = NumberFormat.getCurrencyInstance(Locale.US).format(todaysSales.value),
-                        icon = Icons.Default.TrendingUp,
+                        title = "Today's Revenue",
+                        value = "JOD 0.00", // Placeholder
+                        icon = Icons.AutoMirrored.Filled.TrendingUp,
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.weight(1f)
-                    ) { /* Navigate to sales overview */ }
+                    ) { /* Navigate to analytics */ }
                 }
             }
             
@@ -196,11 +191,11 @@ fun EmployeeDashboardScreen(
                         ) { onNavigateToProductManagement() }
                         
                         ActionCard(
-                            title = "Sales Processing",
-                            description = "Process customer sales",
+                            title = "Point of Sale",
+                            description = "Process in-store orders",
                             icon = Icons.Default.PointOfSale,
                             modifier = Modifier.weight(1f)
-                        ) { onNavigateToSalesProcessing() }
+                        ) { onNavigateToPointOfSale() }
                     }
                     
                     Row(
@@ -210,14 +205,14 @@ fun EmployeeDashboardScreen(
                         ActionCard(
                             title = "Returns Processing",
                             description = "Handle customer returns",
-                            icon = Icons.Default.AssignmentReturn,
+                            icon = Icons.AutoMirrored.Filled.AssignmentReturn,
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToReturnsProcessing() }
                         
                         ActionCard(
                             title = "Order Management",
                             description = "Manage customer orders",
-                            icon = Icons.Default.Assignment,
+                            icon = Icons.AutoMirrored.Filled.Assignment,
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToOrderManagement() }
                     }
@@ -279,7 +274,7 @@ fun EmployeeDashboardScreen(
                     }
                     
                     OutlinedButton(
-                        onClick = { onNavigateToSalesProcessing() },
+                        onClick = { onNavigateToPointOfSale() },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
@@ -288,7 +283,7 @@ fun EmployeeDashboardScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Process Sale")
+                        Text("Point of Sale")
                     }
                 }
             }

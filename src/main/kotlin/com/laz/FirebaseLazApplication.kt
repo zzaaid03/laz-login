@@ -16,21 +16,34 @@ class FirebaseLazApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         
-        // Initialize Firebase
-        FirebaseApp.initializeApp(this)
+        android.util.Log.d("FirebaseLazApp", "🚀 LAZ Application starting...")
         
-        // Enable offline persistence for Realtime Database
         try {
-            FirebaseDatabase.getInstance().setPersistenceEnabled(true)
+            // Initialize Firebase
+            FirebaseApp.initializeApp(this)
+            android.util.Log.d("FirebaseLazApp", "✅ FirebaseApp initialized")
+            
+            // Test Firebase Database connection
+            val database = FirebaseDatabase.getInstance()
+            android.util.Log.d("FirebaseLazApp", "✅ Firebase Database instance: ${database.reference}")
+            
+            // Enable offline persistence for Realtime Database
+            try {
+                database.setPersistenceEnabled(true)
+                android.util.Log.d("FirebaseLazApp", "✅ Firebase persistence enabled")
+            } catch (e: Exception) {
+                android.util.Log.w("FirebaseLazApp", "⚠️ Firebase persistence setup: ${e.message}")
+            }
+            
+            android.util.Log.d("FirebaseLazApp", "✅ Firebase LAZ Application initialized successfully")
+            
+            // Create default admin and employee users
+            createDefaultUsers()
+            
         } catch (e: Exception) {
-            // Persistence is already enabled or failed to enable
-            android.util.Log.w("FirebaseLazApp", "Firebase persistence setup: ${e.message}")
+            android.util.Log.e("FirebaseLazApp", "❌ Critical error in Application onCreate: ${e.message}", e)
+            throw e
         }
-        
-        android.util.Log.d("FirebaseLazApp", "Firebase LAZ Application initialized successfully")
-        
-        // Create default admin and employee users
-        createDefaultUsers()
     }
     
     /**

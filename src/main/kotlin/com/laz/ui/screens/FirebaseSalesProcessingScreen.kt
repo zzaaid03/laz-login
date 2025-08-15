@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,8 +34,8 @@ private fun formatJOD(amount: BigDecimal): String {
 }
 
 /**
- * Firebase Sales Processing Screen
- * Point of Sale interface for processing customer purchases
+ * Firebase Point of Sale Screen
+ * In-store order processing interface for admin/employee transactions
  */
 @OptIn(ExperimentalMaterial3Api::class) 
 @Composable
@@ -51,7 +52,9 @@ fun FirebaseSalesProcessingScreen(
     val products by productViewModel.products.collectAsState()
     val isLoading by ordersViewModel.isLoading.collectAsState()
     val errorMessage by ordersViewModel.errorMessage.collectAsState()
+    val permissionError by ordersViewModel.permissionError.collectAsState()
     val operationSuccess by ordersViewModel.operationSuccess.collectAsState()
+    val lastCreatedOrder by ordersViewModel.lastCreatedOrder.collectAsState()
     
     var selectedProducts by remember { mutableStateOf<Map<Long, Int>>(emptyMap()) }
     var searchQuery by remember { mutableStateOf("") }
@@ -70,6 +73,24 @@ fun FirebaseSalesProcessingScreen(
         productViewModel.loadProducts()
     }
     
+    // Handle order creation success
+    LaunchedEffect(operationSuccess) {
+        operationSuccess?.let {
+            selectedOrder = lastCreatedOrder
+            showReceiptDialog = true
+            lastSaleResult = it
+        }
+    }
+    
+    // Handle order creation errors
+    LaunchedEffect(errorMessage, permissionError) {
+        val error = errorMessage ?: permissionError
+        error?.let {
+            lastSaleResult = "Error: $it"
+            showErrorDialog = true
+        }
+    }
+    
     // Filter products based on search
     val filteredProducts = products.filter { product ->
         product.name.contains(searchQuery, ignoreCase = true) ||
@@ -85,10 +106,10 @@ fun FirebaseSalesProcessingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Sales Processing") },
+                title = { Text("Point of Sale") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -96,7 +117,7 @@ fun FirebaseSalesProcessingScreen(
                         TextButton(
                             onClick = { showConfirmDialog = true }
                         ) {
-                            Text("Process Sale")
+                            Text("Process Order")
                         }
                     }
                 }
@@ -135,7 +156,7 @@ fun FirebaseSalesProcessingScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "Current Sale",
+                            text = "Current Order",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -157,7 +178,7 @@ fun FirebaseSalesProcessingScreen(
                             }
                         }
                         
-                        Divider(modifier = Modifier.padding(vertical = 8.dp))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -219,10 +240,10 @@ fun FirebaseSalesProcessingScreen(
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Confirm Sale") },
+            title = { Text("Confirm Order") },
             text = {
                 Column {
-                    Text("Process sale for:")
+                    Text("Process order for:")
                     Spacer(modifier = Modifier.height(8.dp))
                     selectedProducts.forEach { (productId, quantity) ->
                         val product = products.find { it.id == productId }
@@ -244,9 +265,6 @@ fun FirebaseSalesProcessingScreen(
                             isProcessing = true
                             scope.launch {
                                 try {
-                                    var successCount = 0
-                                    var totalItems = selectedProducts.size
-                                    
                                     // Create order items from selected products
                                     val orderItems = selectedProducts.mapNotNull { (productId, quantity) ->
                                         val product = products.find { it.id == productId }
@@ -275,9 +293,10 @@ fun FirebaseSalesProcessingScreen(
                                     )
                                     
                                     // Use order creation instead of direct sales processing
+                                    android.util.Log.d("PointOfSale", "Creating order with ${order.items.size} items, total: ${order.totalAmount}")
+                                    android.util.Log.d("PointOfSale", "Order items: ${order.items.map { "${it.productName} x${it.quantity}" }}")
                                     ordersViewModel.createOrder(order)
-                                    successCount = selectedProducts.size
-                                    
+                                            
                                     // Show receipt instead of generic success message
                                     selectedOrder = order
                                     lastSaleResult = "Order completed successfully! Receipt generated."
@@ -285,7 +304,7 @@ fun FirebaseSalesProcessingScreen(
                                     showConfirmDialog = false
                                     showReceiptDialog = true
                                 } catch (e: Exception) {
-                                    lastSaleResult = "Error processing sale: ${e.message}"
+                                    lastSaleResult = "Error processing order: ${e.message}"
                                     showErrorDialog = true
                                 } finally {
                                     isProcessing = false
@@ -317,7 +336,7 @@ fun FirebaseSalesProcessingScreen(
     if (showSuccessDialog) {
         AlertDialog(
             onDismissRequest = { showSuccessDialog = false },
-            title = { Text("Sale Completed") },
+            title = { Text("Order Completed") },
             text = {
                 Column {
                     Icon(
@@ -327,7 +346,7 @@ fun FirebaseSalesProcessingScreen(
                         modifier = Modifier.size(48.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(lastSaleResult ?: "Sale processed successfully!")
+                    Text(lastSaleResult ?: "Order processed successfully!")
                 }
             },
             confirmButton = {
@@ -342,7 +361,7 @@ fun FirebaseSalesProcessingScreen(
     if (showErrorDialog) {
         AlertDialog(
             onDismissRequest = { showErrorDialog = false },
-            title = { Text("Sale Error") },
+            title = { Text("Order Error") },
             text = {
                 Column {
                     Icon(
@@ -352,7 +371,7 @@ fun FirebaseSalesProcessingScreen(
                         modifier = Modifier.size(48.dp)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(lastSaleResult ?: errorMessage ?: "An error occurred processing the sale")
+                    Text(lastSaleResult ?: errorMessage ?: "An error occurred processing the order")
                 }
             },
             confirmButton = {

@@ -103,12 +103,18 @@ class FirebaseOrdersViewModel(
     }
 
     /**
-     * Create new order (Customer only)
+     * Create new order (Customer, Admin, or Employee for Point of Sale)
      */
     fun createOrder(order: Order) {
         val user = currentUser.value
-        if (!PermissionManager.isCustomer(user)) {
-            _permissionError.value = "Only customers can create orders"
+        if (user == null) {
+            _permissionError.value = "Authentication required"
+            return
+        }
+        
+        // Allow customers, admins, and employees to create orders
+        if (!PermissionManager.isCustomer(user) && !PermissionManager.isAdmin(user) && !PermissionManager.isEmployee(user)) {
+            _permissionError.value = "Insufficient permissions to create orders"
             return
         }
 
@@ -136,13 +142,16 @@ class FirebaseOrdersViewModel(
                 }
                 
                 // If stock reduction successful, create the order
+                android.util.Log.d("OrdersViewModel", "Creating order for ${order.items.size} items, total: ${order.totalAmount}")
                 val result = ordersRepository.createOrder(order)
                 if (result.isSuccess) {
                     val createdOrder = result.getOrNull()
+                    android.util.Log.d("OrdersViewModel", "Order created successfully with ID: ${createdOrder?.id}")
                     _lastCreatedOrder.value = createdOrder
                     _operationSuccess.value = "Order created successfully! Order ID: ${createdOrder?.id}"
                     loadOrders() // Refresh the list
                 } else {
+                    android.util.Log.e("OrdersViewModel", "Failed to create order: ${result.exceptionOrNull()?.message}")
                     // If order creation fails, we should restore the stock
                     // For now, we'll just show the error - in production, implement stock restoration
                     _errorMessage.value = "Failed to create order: ${result.exceptionOrNull()?.message}"

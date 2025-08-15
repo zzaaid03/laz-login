@@ -1,5 +1,6 @@
 package com.laz.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,6 +44,12 @@ fun FirebaseLoginScreen(
     val isLoading by authViewModel.isLoading.collectAsState()
     val errorMessage by authViewModel.errorMessage.collectAsState()
     val authState by authViewModel.authState.collectAsState()
+    
+    // Handle back button to prevent app from closing on login screen
+    BackHandler {
+        // Do nothing - prevent app from closing when back is pressed on login screen
+        // Users must use proper logout or login to navigate
+    }
     
     // Handle successful login
     LaunchedEffect(authState.isLoggedIn) {
