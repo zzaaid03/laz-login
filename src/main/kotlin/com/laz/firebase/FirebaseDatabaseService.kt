@@ -1,10 +1,8 @@
 package com.laz.firebase
-
 import com.google.firebase.database.*
 import com.laz.models.User
 import com.laz.models.Product
 import com.laz.models.CartItem
-import com.laz.models.Sale
 import com.laz.models.Return
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -121,29 +119,7 @@ class FirebaseDatabaseService {
         awaitClose { cartItemsRef.child(userId).removeEventListener(listener) }
     }
     
-    // Sales operations
-    suspend fun createSale(sale: Sale): String {
-        val saleRef = salesRef.push()
-        saleRef.setValue(sale).await()
-        return saleRef.key ?: ""
-    }
-    
-    fun getAllSales(): Flow<List<Sale>> = callbackFlow {
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val sales = snapshot.children.mapNotNull { 
-                    it.getValue(Sale::class.java)?.copy(id = it.key?.toLongOrNull() ?: 0)
-                }
-                trySend(sales)
-            }
-            
-            override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
-            }
-        }
-        salesRef.addValueEventListener(listener)
-        awaitClose { salesRef.removeEventListener(listener) }
-    }
+    // Sales operations removed - now using Order-based architecture
     
     // Returns operations
     suspend fun createReturn(returnItem: Return): String {

@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -94,86 +95,36 @@ data class ProductUiState(
     val error: String? = null
 )
 
-// Simple tab indicator - removing complex offset function
-@Composable
-private fun SimpleTabIndicator() {
-    // This will be handled by TabRowDefaults.Indicator
-}
+// Define a CompositionLocal for the current user role
+val LocalUserRole = staticCompositionLocalOf<String?> { null }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProductItem(
-    product: Product,
-    userRole: String? = null,
-    onEditClick: (Product) -> Unit = {},
-    onDeleteClick: (Product) -> Unit = {},
-    onInventoryClick: (Product) -> Unit = {}
+fun EmployeeProductManagementScreen(
+    productViewModel: SecureFirebaseProductViewModel,
+    userRole: String?,
+    onBackClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = product.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                // Stock status indicator
-                val stockStatusColor = when {
-                    product.quantity <= 0 -> MaterialTheme.colorScheme.error
-                    product.quantity <= LOW_STOCK_THRESHOLD -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.primary
-                }
-                
-                Text(
-                    text = if (product.quantity > 0) "${product.quantity} in stock" else "Out of stock",
-                    color = stockStatusColor,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Price and shelf location
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "${NumberFormat.getCurrencyInstance(Locale.US).format(product.price)}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
-                )
-                
-                Text(
-                    text = "Shelf: ${product.shelfLocation}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Role-based action buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (userRole == "ADMIN") {
-                    // Admin can edit, delete, and update inventory
-                    IconButton(onClick = { onInventoryClick(product) }) {
+    val products by productViewModel.products.collectAsState()
+    val isLoading by productViewModel.isLoading.collectAsState()
+    val errorMessage by productViewModel.errorMessage.collectAsState()
+    
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedProduct by remember { mutableStateOf<Product?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        productViewModel.loadProducts()
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Product Management") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back"
@@ -201,7 +152,7 @@ private fun ProductItem(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (products.isEmpty()) {
+            if (products.isEmpty() && !isLoading) {
                 item {
                     Box(
                         modifier = Modifier
@@ -243,8 +194,25 @@ private fun ProductItem(
                                 selectedProduct = product
                                 showEditDialog = true
                             }
+                        } else null,
+                        onDeleteClick = if (userRole == "ADMIN") {
+                            {
+                                selectedProduct = product
+                                showDeleteDialog = true
+                            }
                         } else null
                     )
+                }
+            }
+            
+            if (isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
             }
         }
@@ -281,12 +249,185 @@ private fun ProductItem(
             }
         )
     }
+
+    // Delete Product Confirmation Dialog
+    if (showDeleteDialog && selectedProduct != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                selectedProduct = null
+            },
+            title = {
+                Text("Delete Product")
+            },
+            text = {
+                Text("Are you sure you want to delete \"${selectedProduct!!.name}\"? This action cannot be undone.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            productViewModel.deleteProduct(selectedProduct!!.id)
+                            showDeleteDialog = false
+                            selectedProduct = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        selectedProduct = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Error handling
+    errorMessage?.let { error ->
+        LaunchedEffect(error) {
+            // Handle error display - could show a snackbar or dialog
+        }
+    }
+}
+
+// Simple tab indicator - removing complex offset function
+@Composable
+private fun SimpleTabIndicator() {
+    // This will be handled by TabRowDefaults.Indicator
+}
+
+@Composable
+private fun ProductItem(
+    product: Product,
+    userRole: String? = null,
+    onEditClick: (Product) -> Unit = {},
+    onDeleteClick: (Product) -> Unit = {},
+    onInventoryClick: (Product) -> Unit = {}
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Product Image
+            ProductImageDisplay(
+                imageUrl = product.imageUrl,
+                modifier = Modifier.padding(end = 16.dp),
+                size = 80
+            )
+            
+            // Product Details
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = product.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    // Stock status indicator
+                    val stockStatusColor = when {
+                        product.quantity <= 0 -> MaterialTheme.colorScheme.error
+                        product.quantity <= LOW_STOCK_THRESHOLD -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    
+                    Text(
+                        text = if (product.quantity > 0) "${product.quantity} in stock" else "Out of stock",
+                        color = stockStatusColor,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+        
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp)
+        ) {
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Price and shelf location
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${NumberFormat.getCurrencyInstance(Locale.US).format(product.price)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Text(
+                    text = "Shelf: ${product.shelfLocation}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Role-based action buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (userRole == "ADMIN") {
+                    // Admin can edit, delete, and update inventory
+                    IconButton(onClick = { onInventoryClick(product) }) {
+                        Icon(
+                            imageVector = Icons.Default.Inventory,
+                            contentDescription = "Inventory"
+                        )
+                    }
+                    
+                    IconButton(onClick = { onEditClick(product) }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Product"
+                        )
+                    }
+                    
+                    IconButton(onClick = { onDeleteClick(product) }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete Product"
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
 fun ProductItemCard(
     product: Product,
     onEditClick: (() -> Unit)?,
+    onDeleteClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -328,12 +469,22 @@ fun ProductItemCard(
                 )
             }
             
-            // Edit Button (Admin only)
+            // Admin Action Buttons
             if (onEditClick != null) {
                 IconButton(onClick = onEditClick) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit Product"
+                    )
+                }
+            }
+            
+            if (onDeleteClick != null) {
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Product",
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
             }

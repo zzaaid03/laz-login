@@ -127,12 +127,8 @@ fun FirebaseUserManagementScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Filter users to only show ADMIN and EMPLOYEE roles (not CUSTOMER)
-                    val managableUsers = users.filter { user ->
-                        user.role == UserRole.ADMIN || user.role == UserRole.EMPLOYEE
-                    }
-                    
-                    items(managableUsers) { user ->
+                    // Show only employees and admins - Customers are managed through signup only
+                    items(users.filter { it.role != UserRole.CUSTOMER }) { user ->
                         UserCard(
                             user = user,
                             onEdit = {
@@ -364,7 +360,7 @@ private fun AddUserDialog(
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var selectedRole by remember { mutableStateOf(UserRole.ADMIN) }
+    var selectedRole by remember { mutableStateOf(UserRole.CUSTOMER) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 

@@ -16,9 +16,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.laz.models.Product
-import com.laz.viewmodels.FirebaseSalesViewModel
+import com.laz.viewmodels.FirebaseOrdersViewModel
 import com.laz.viewmodels.SecureFirebaseProductViewModel
 import com.laz.viewmodels.FirebaseServices
+import com.laz.ui.components.OrderReceiptDialog
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.*
@@ -40,24 +41,27 @@ private fun formatJOD(amount: BigDecimal): String {
 fun FirebaseSalesProcessingScreen(
     onBack: () -> Unit
 ) {
-    val salesViewModel: FirebaseSalesViewModel = viewModel(
-        factory = FirebaseServices.viewModelFactory
+    val ordersViewModel: FirebaseOrdersViewModel = viewModel(
+        factory = FirebaseServices.secureViewModelFactory
     )
     val productViewModel: SecureFirebaseProductViewModel = viewModel(
         factory = FirebaseServices.secureViewModelFactory
     )
     
     val products by productViewModel.products.collectAsState()
-    val isLoading by salesViewModel.isLoading.collectAsState()
-    val errorMessage by salesViewModel.errorMessage.collectAsState()
+    val isLoading by ordersViewModel.isLoading.collectAsState()
+    val errorMessage by ordersViewModel.errorMessage.collectAsState()
+    val operationSuccess by ordersViewModel.operationSuccess.collectAsState()
     
     var selectedProducts by remember { mutableStateOf<Map<Long, Int>>(emptyMap()) }
     var searchQuery by remember { mutableStateOf("") }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
+    var showReceiptDialog by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
     var lastSaleResult by remember { mutableStateOf<String?>(null) }
+    var selectedOrder by remember { mutableStateOf<com.laz.models.Order?>(null) }
     
     val scope = rememberCoroutineScope()
     
@@ -243,20 +247,43 @@ fun FirebaseSalesProcessingScreen(
                                     var successCount = 0
                                     var totalItems = selectedProducts.size
                                     
-                                    // Process each selected product
-                                    selectedProducts.forEach { (productId, quantity) ->
+                                    // Create order items from selected products
+                                    val orderItems = selectedProducts.mapNotNull { (productId, quantity) ->
                                         val product = products.find { it.id == productId }
-                                        if (product != null) {
-                                            salesViewModel.processSale(product, quantity, "Current User")
-                                            successCount++
+                                        product?.let {
+                                            val itemTotal = it.price.multiply(BigDecimal(quantity))
+                                            com.laz.models.OrderItem(
+                                                productId = it.id,
+                                                productName = it.name,
+                                                quantity = quantity,
+                                                unitPrice = it.price,
+                                                totalPrice = itemTotal
+                                            )
                                         }
                                     }
                                     
-                                    // Show success feedback
-                                    lastSaleResult = "Successfully processed $successCount of $totalItems items"
+                                    // Create order for in-store purchase (admin/employee processing)
+                                    val order = com.laz.models.Order(
+                                        customerId = 1L, // In-store customer placeholder
+                                        customerUsername = "in-store-customer",
+                                        items = orderItems,
+                                        totalAmount = total.toBigDecimal(),
+                                        status = com.laz.models.OrderStatus.DELIVERED, // Immediate delivery for in-store sales
+                                        shippingAddress = "In-Store Pickup",
+                                        paymentMethod = "Cash/Card",
+                                        orderDate = System.currentTimeMillis()
+                                    )
+                                    
+                                    // Use order creation instead of direct sales processing
+                                    ordersViewModel.createOrder(order)
+                                    successCount = selectedProducts.size
+                                    
+                                    // Show receipt instead of generic success message
+                                    selectedOrder = order
+                                    lastSaleResult = "Order completed successfully! Receipt generated."
                                     selectedProducts = emptyMap()
                                     showConfirmDialog = false
-                                    showSuccessDialog = true
+                                    showReceiptDialog = true
                                 } catch (e: Exception) {
                                     lastSaleResult = "Error processing sale: ${e.message}"
                                     showErrorDialog = true
@@ -332,6 +359,17 @@ fun FirebaseSalesProcessingScreen(
                 TextButton(onClick = { showErrorDialog = false }) {
                     Text("OK")
                 }
+            }
+        )
+    }
+    
+    // Receipt Dialog
+    if (showReceiptDialog && selectedOrder != null) {
+        OrderReceiptDialog(
+            order = selectedOrder!!,
+            onDismiss = { 
+                showReceiptDialog = false
+                selectedOrder = null
             }
         )
     }

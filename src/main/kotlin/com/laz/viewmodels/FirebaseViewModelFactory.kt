@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.laz.repositories.FirebaseCartRepository
 import com.laz.repositories.FirebaseProductRepository
 import com.laz.repositories.FirebaseUserRepository
-import com.laz.repositories.FirebaseSalesRepository
+
 import com.laz.repositories.FirebaseReturnsRepository
 import com.laz.repositories.FirebaseOrdersRepository
 import com.laz.repositories.FirebaseChatRepository
@@ -28,7 +28,6 @@ class SecureFirebaseViewModelFactory(
     private val firebaseUserRepository: FirebaseUserRepository,
     private val firebaseProductRepository: FirebaseProductRepository,
     private val firebaseCartRepository: FirebaseCartRepository,
-    private val firebaseSalesRepository: FirebaseSalesRepository,
     private val firebaseReturnsRepository: FirebaseReturnsRepository,
     private val firebaseOrdersRepository: FirebaseOrdersRepository,
     private val firebaseChatRepository: FirebaseChatRepository,
@@ -64,14 +63,7 @@ class SecureFirebaseViewModelFactory(
                     currentUser = currentUser
                 ) as T
             }
-            FirebaseSalesViewModel::class.java -> {
-                FirebaseSalesViewModel(
-                    firebaseProductRepository = firebaseProductRepository,
-                    firebaseSalesRepository = firebaseSalesRepository,
-                    firebaseDatabaseService = FirebaseServices.databaseService,
-                    currentUser = currentUser
-                ) as T
-            }
+
             FirebaseReturnsViewModel::class.java -> {
                 FirebaseReturnsViewModel(
                     firebaseProductRepository = firebaseProductRepository,
@@ -104,7 +96,7 @@ object FirebaseServices {
     val userRepository: FirebaseUserRepository by lazy { FirebaseUserRepository() }
     val productRepository: FirebaseProductRepository by lazy { FirebaseProductRepository() }
     val cartRepository: FirebaseCartRepository by lazy { FirebaseCartRepository() }
-    val salesRepository: FirebaseSalesRepository by lazy { FirebaseSalesRepository() }
+
     val returnsRepository: FirebaseReturnsRepository by lazy { FirebaseReturnsRepository() }
     val ordersRepository: FirebaseOrdersRepository by lazy { FirebaseOrdersRepository() }
     val chatRepository: FirebaseChatRepository by lazy { FirebaseChatRepository() }
@@ -186,7 +178,6 @@ object FirebaseServices {
             firebaseUserRepository = userRepository,
             firebaseProductRepository = productRepository,
             firebaseCartRepository = cartRepository,
-            firebaseSalesRepository = salesRepository,
             firebaseReturnsRepository = returnsRepository,
             firebaseOrdersRepository = ordersRepository,
             firebaseChatRepository = chatRepository,

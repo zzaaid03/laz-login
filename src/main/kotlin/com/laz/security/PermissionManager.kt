@@ -135,10 +135,10 @@ object PermissionManager {
     }
     
     /**
-     * Can view sales reports (Admin and Employee only)
+     * Can view sales reports (Admin only)
      */
     fun canViewSalesReports(user: User?): Boolean {
-        return user?.role in listOf(UserRole.ADMIN, UserRole.EMPLOYEE)
+        return user?.role == UserRole.ADMIN
     }
     
     /**

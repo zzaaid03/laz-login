@@ -143,9 +143,13 @@ class FirebaseOrdersRepository {
                 return Result.failure(Exception("Order not found"))
             }
             
-            // Check if we need to restore stock (when changing to CANCELLED or RETURNED)
-            val shouldRestoreStock = (status == OrderStatus.CANCELLED || status == OrderStatus.RETURNED) &&
-                    (order.status != OrderStatus.CANCELLED && order.status != OrderStatus.RETURNED)
+            // Check stock management needs based on status changes
+            val wasOrderCancelledOrReturned = (order.status == OrderStatus.CANCELLED || order.status == OrderStatus.RETURNED)
+            val isOrderBeingCancelledOrReturned = (status == OrderStatus.CANCELLED || status == OrderStatus.RETURNED)
+            val isOrderBeingFulfilled = (status == OrderStatus.DELIVERED || status == OrderStatus.SHIPPED || status == OrderStatus.PROCESSING)
+            
+            val shouldRestoreStock = isOrderBeingCancelledOrReturned && !wasOrderCancelledOrReturned
+            val shouldDeductStock = isOrderBeingFulfilled && wasOrderCancelledOrReturned
             
             // Update order status
             val updates = mutableMapOf<String, Any?>(
@@ -157,9 +161,11 @@ class FirebaseOrdersRepository {
             
             ordersRef.child(orderId.toString()).updateChildren(updates).await()
             
-            // Restore stock if needed
+            // Handle stock changes based on status transition
             if (shouldRestoreStock) {
                 restoreOrderStock(order)
+            } else if (shouldDeductStock) {
+                deductOrderStock(order)
             }
             
             Result.success(Unit)
@@ -195,6 +201,37 @@ class FirebaseOrdersRepository {
             println("DEBUG: Successfully restored stock for order ${order.id}")
         } catch (e: Exception) {
             println("ERROR: Failed to restore stock for order ${order.id}: ${e.message}")
+            // Don't throw exception here - order status update should still succeed
+        }
+    }
+
+    /**
+     * Deduct product stock when order changes from cancelled/returned to fulfilled status
+     */
+    private suspend fun deductOrderStock(order: Order) {
+        try {
+            val productsRef = database.getReference("products")
+            
+            for (item in order.items) {
+                // Get current product data
+                val productSnapshot = productsRef.child(item.productId.toString()).get().await()
+                if (productSnapshot.exists()) {
+                    val currentQuantity = productSnapshot.child("quantity").getValue(Int::class.java) ?: 0
+                    val deductedQuantity = maxOf(0, currentQuantity - item.quantity) // Ensure we don't go below 0
+                    
+                    // Update product quantity
+                    productsRef.child(item.productId.toString())
+                        .child("quantity")
+                        .setValue(deductedQuantity)
+                        .await()
+                    
+                    println("DEBUG: Deducted stock for product ${item.productId}: ${item.quantity} units (${currentQuantity} -> ${deductedQuantity})")
+                }
+            }
+            
+            println("DEBUG: Successfully deducted stock for order ${order.id}")
+        } catch (e: Exception) {
+            println("ERROR: Failed to deduct stock for order ${order.id}: ${e.message}")
             // Don't throw exception here - order status update should still succeed
         }
     }
