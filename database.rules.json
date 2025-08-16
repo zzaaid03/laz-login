@@ -67,6 +67,11 @@
     "test": {
       ".read": true,
       ".write": true
+    },
+    "potential_orders": {
+      ".indexOn": ["customerId", "status", "createdAt", "updatedAt"],
+      ".read": true,
+      ".write": true
     }
   }
 }

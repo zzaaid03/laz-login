@@ -1,17 +1,25 @@
 package com.laz
 
 import android.app.Application
+import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.database.FirebaseDatabase
+import com.laz.config.SecureConfig
 import com.laz.services.DefaultUserService
 import com.laz.services.FirebaseAuthService
 import com.laz.repositories.FirebaseUserRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Firebase LAZ Application
  * Initializes Firebase services and enables offline persistence
  */
 class FirebaseLazApplication : Application() {
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
         super.onCreate()
@@ -22,6 +30,20 @@ class FirebaseLazApplication : Application() {
             // Initialize Firebase
             FirebaseApp.initializeApp(this)
             android.util.Log.d("FirebaseLazApp", "✅ FirebaseApp initialized")
+            
+            // Initialize SecureConfig for API key management
+            applicationScope.launch {
+                try {
+                    val success = SecureConfig.getInstance().initialize(this@FirebaseLazApplication)
+                    if (success) {
+                        Log.d("FirebaseLazApp", "✅ SecureConfig initialized successfully")
+                    } else {
+                        Log.e("FirebaseLazApp", "❌ Failed to initialize SecureConfig")
+                    }
+                } catch (e: Exception) {
+                    Log.e("FirebaseLazApp", "❌ SecureConfig initialization error", e)
+                }
+            }
             
             // Test Firebase Database connection
             val database = FirebaseDatabase.getInstance()
