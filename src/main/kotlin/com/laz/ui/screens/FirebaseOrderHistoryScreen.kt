@@ -36,12 +36,8 @@ fun FirebaseOrderHistoryScreen(
     val errorMessage by ordersViewModel.errorMessage.collectAsState()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(currentUser.id) {
-        scope.launch {
-            // Load user's orders
-            ordersViewModel.loadOrders()
-        }
-    }
+    // Orders are automatically loaded via real-time listening in ViewModel init
+    // No need to manually load orders - they're filtered by customer ID automatically
 
     Scaffold(
         topBar = {
@@ -109,11 +105,13 @@ fun FirebaseOrderHistoryScreen(
                     )
                 }
             } else {
-                // Filter for completed orders only (Delivered, Cancelled, Returned)
+                // Filter for current user's completed orders only (Delivered, Cancelled, Returned)
                 val completedOrders = orders.filter { order ->
-                    order.status == com.laz.models.OrderStatus.DELIVERED || 
-                    order.status == com.laz.models.OrderStatus.CANCELLED || 
-                    order.status == com.laz.models.OrderStatus.RETURNED
+                    order.customerId == currentUser.id && (
+                        order.status == com.laz.models.OrderStatus.DELIVERED || 
+                        order.status == com.laz.models.OrderStatus.CANCELLED || 
+                        order.status == com.laz.models.OrderStatus.RETURNED
+                    )
                 }
                 
                 if (completedOrders.isEmpty()) {

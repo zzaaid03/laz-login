@@ -336,10 +336,22 @@ class FirebaseOrdersRepository {
     fun getOrdersByCustomerIdFlow(customerId: Long): Flow<List<Order>> = callbackFlow {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val orders = snapshot.children.mapNotNull { it.toOrder() }
-                    .filter { it.customerId == customerId }
-                    .sortedByDescending { it.orderDate }
-                trySend(orders)
+                android.util.Log.d("FirebaseOrders", "🔍 Loading orders for customer ID: $customerId")
+                android.util.Log.d("FirebaseOrders", "📊 Total orders in Firebase: ${snapshot.childrenCount}")
+                
+                val allOrders = snapshot.children.mapNotNull { 
+                    val order = it.toOrder()
+                    if (order != null) {
+                        android.util.Log.d("FirebaseOrders", "📦 Order ${order.id}: customerId=${order.customerId}, status=${order.status}")
+                    }
+                    order
+                }
+                
+                val customerOrders = allOrders.filter { it.customerId == customerId }
+                android.util.Log.d("FirebaseOrders", "✅ Found ${customerOrders.size} orders for customer $customerId")
+                
+                val sortedOrders = customerOrders.sortedByDescending { it.orderDate }
+                trySend(sortedOrders)
             }
 
             override fun onCancelled(error: DatabaseError) {

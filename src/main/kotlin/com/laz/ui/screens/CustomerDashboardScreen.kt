@@ -35,11 +35,13 @@ fun CustomerDashboardScreen(
     onNavigateToCart: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToOrderHistory: () -> Unit = {},
+    onNavigateToOrderTracking: () -> Unit = {},
     onNavigateToChat: () -> Unit = {},
     onNavigateToCustomerSupport: () -> Unit = {},
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     cartViewModel: SecureFirebaseCartViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
+    android.util.Log.d("CustomerDashboard", "🏠 CustomerDashboardScreen loaded for user: ${user.username}")
     // Collect state from ViewModels
     val products by productViewModel.getCustomerProducts().collectAsState()
     val cartItemCount by cartViewModel.cartItemCount.collectAsState()
@@ -231,7 +233,7 @@ fun CustomerDashboardScreen(
                             description = "Track your order status",
                             icon = Icons.Default.LocalShipping,
                             modifier = Modifier.weight(1f)
-                        ) { onNavigateToOrderHistory() }
+                        ) { onNavigateToOrderTracking() }
                     }
                     
                     Row(

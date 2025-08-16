@@ -48,11 +48,17 @@ class FirebaseOrdersViewModel(
     val totalOrdersAmount: StateFlow<BigDecimal> = _totalOrdersAmount.asStateFlow()
 
     init {
-        // Set up real-time orders listening when user authentication state is available
+        android.util.Log.d("OrdersViewModel", "🏗️ ViewModel instance created: ${this.hashCode()}")
         viewModelScope.launch {
             currentUser.collect { user ->
+                android.util.Log.d("OrdersViewModel", "🔄 Current user changed: ${user?.username} (ID: ${user?.id}, Role: ${user?.role}) in ViewModel ${this@FirebaseOrdersViewModel.hashCode()}")
                 if (user != null) {
+                    android.util.Log.d("OrdersViewModel", "✅ Starting real-time orders listening for user: ${user.username}")
                     startRealTimeOrdersListening(user)
+                } else {
+                    android.util.Log.d("OrdersViewModel", "❌ No user available, clearing orders")
+                    _orders.value = emptyList()
+                    _isLoading.value = false
                 }
             }
         }
@@ -70,8 +76,14 @@ class FirebaseOrdersViewModel(
             try {
                 if (PermissionManager.isCustomer(user)) {
                     // Customers see only their orders with real-time updates
+                    android.util.Log.d("OrdersViewModel", "📡 Starting customer orders flow for user ${user.id}")
                     ordersRepository.getOrdersByCustomerIdFlow(user.id).collect { orders ->
+                        android.util.Log.d("OrdersViewModel", "📦 Received ${orders.size} orders in ViewModel")
+                        orders.forEachIndexed { index, order ->
+                            android.util.Log.d("OrdersViewModel", "📋 Order $index: ID=${order.id}, customerId=${order.customerId}, status=${order.status}")
+                        }
                         _orders.value = orders
+                        android.util.Log.d("OrdersViewModel", "✅ Updated _orders.value with ${orders.size} orders")
                         updateStatistics()
                         _isLoading.value = false
                     }

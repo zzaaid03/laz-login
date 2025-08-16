@@ -10,6 +10,11 @@
       ".read": true,
       ".write": true
     },
+    "cart": {
+      ".indexOn": ["userId", "productId", "timestamp"],
+      ".read": true,
+      ".write": true
+    },
     "cart_items": {
       ".indexOn": ["userId", "productId", "timestamp"],
       ".read": true,
@@ -31,6 +36,21 @@
       ".write": true
     },
     "analytics": {
+      ".read": true,
+      ".write": true
+    },
+    "chats": {
+      ".indexOn": ["customerId", "employeeId", "timestamp", "status"],
+      ".read": true,
+      ".write": true
+    },
+    "chat_sessions": {
+      ".indexOn": ["customerId", "employeeId", "timestamp", "status"],
+      ".read": true,
+      ".write": true
+    },
+    "messages": {
+      ".indexOn": ["chatId", "senderId", "timestamp"],
       ".read": true,
       ".write": true
     },
