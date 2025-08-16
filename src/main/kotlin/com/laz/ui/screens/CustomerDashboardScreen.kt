@@ -260,8 +260,9 @@ fun CustomerDashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ActionCard(
-                            title = "Chat Support",
-                            description = "Get help from our assistant",
+                            title = "Ask for new!",
+                            description = "Here is your special Orders" +
+                                    "Powered by AI",
                             icon = Icons.AutoMirrored.Filled.Chat,
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToChat() }
