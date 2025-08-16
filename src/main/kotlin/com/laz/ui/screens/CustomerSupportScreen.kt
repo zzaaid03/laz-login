@@ -7,49 +7,79 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.laz.models.User
-import com.laz.viewmodels.*
+import com.laz.models.SupportMessage
+import com.laz.viewmodels.SupportChatViewModel
+import com.laz.viewmodels.FirebaseServices
 import kotlinx.coroutines.launch
-
-data class SupportMessage(
-    val id: String = "",
-    val content: String,
-    val isFromCustomer: Boolean,
-    val timestamp: Long = System.currentTimeMillis(),
-    val isSystemMessage: Boolean = false
-)
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerSupportScreen(
     user: User,
-    onBack: () -> Unit,
-    chatViewModel: FirebaseChatViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
+    onBack: () -> Unit
 ) {
-    var messages by remember { 
-        mutableStateOf(
-            listOf(
-                SupportMessage(
-                    content = "Hello ${user.username}! Welcome to LAZ Store Customer Support. I'm here to help you with:\n\n• Order inquiries and tracking\n• Product information and availability\n• Account and billing questions\n• Returns and exchanges\n• Technical support\n\nHow can I assist you today?",
-                    isFromCustomer = false,
-                    isSystemMessage = true
-                )
-            )
-        )
-    }
+    var initializationError by remember { mutableStateOf<String?>(null) }
+    
+    val chatViewModel: SupportChatViewModel = viewModel(
+        factory = FirebaseServices.secureViewModelFactory
+    )
+    
+    val messages by chatViewModel.messages.collectAsState()
+    val isLoading by chatViewModel.isLoading.collectAsState()
+    val error by chatViewModel.error.collectAsState()
+    
     var userInput by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
+    
+    // Start chat when screen opens
+    LaunchedEffect(user.id) {
+        try {
+            chatViewModel.startCustomerChat(user.id, user.username)
+        } catch (e: Exception) {
+            initializationError = "Failed to start chat: ${e.message}"
+        }
+    }
+    
+    // Show error screen if initialization failed
+    if (initializationError != null || error != null) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Chat Error",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = initializationError ?: error ?: "Unknown error",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onBack) {
+                Text("Go Back")
+            }
+        }
+        return
+    }
     
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -118,35 +148,13 @@ fun CustomerSupportScreen(
                     FloatingActionButton(
                         onClick = {
                             if (userInput.isNotBlank() && !isLoading) {
-                                val userMessage = SupportMessage(
-                                    content = userInput,
+                                chatViewModel.sendMessage(
+                                    customerId = user.id,
+                                    customerName = user.username,
+                                    message = userInput,
                                     isFromCustomer = true
                                 )
-                                messages = messages + userMessage
-                                
-                                val currentInput = userInput
                                 userInput = ""
-                                isLoading = true
-                                
-                                // Generate support response
-                                scope.launch {
-                                    try {
-                                        val response = generateSupportResponse(currentInput, user)
-                                        val supportResponse = SupportMessage(
-                                            content = response,
-                                            isFromCustomer = false
-                                        )
-                                        messages = messages + supportResponse
-                                    } catch (e: Exception) {
-                                        val errorResponse = SupportMessage(
-                                            content = "I apologize, but I'm having trouble processing your request right now. Please try again or contact our support team directly at support@lazstore.com",
-                                            isFromCustomer = false
-                                        )
-                                        messages = messages + errorResponse
-                                    } finally {
-                                        isLoading = false
-                                    }
-                                }
                             }
                         },
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -198,6 +206,8 @@ private fun SupportMessageBubble(
     message: SupportMessage,
     user: User
 ) {
+    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.isFromCustomer) Arrangement.End else Arrangement.Start
@@ -230,8 +240,6 @@ private fun SupportMessageBubble(
             colors = CardDefaults.cardColors(
                 containerColor = if (message.isFromCustomer) {
                     MaterialTheme.colorScheme.primary
-                } else if (message.isSystemMessage) {
-                    MaterialTheme.colorScheme.tertiaryContainer
                 } else {
                     MaterialTheme.colorScheme.surfaceVariant
                 }
@@ -240,9 +248,9 @@ private fun SupportMessageBubble(
             Column(
                 modifier = Modifier.padding(12.dp)
             ) {
-                if (!message.isFromCustomer && !message.isSystemMessage) {
+                if (!message.isFromCustomer) {
                     Text(
-                        text = "LAZ Support",
+                        text = if (message.employeeName.isNotEmpty()) message.employeeName else "LAZ Support",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -251,14 +259,24 @@ private fun SupportMessageBubble(
                 }
                 
                 Text(
-                    text = message.content,
+                    text = message.message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (message.isFromCustomer) {
                         MaterialTheme.colorScheme.onPrimary
-                    } else if (message.isSystemMessage) {
-                        MaterialTheme.colorScheme.onTertiaryContainer
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Text(
+                    text = timeFormat.format(Date(message.timestamp)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (message.isFromCustomer) {
+                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     }
                 )
             }
@@ -283,47 +301,3 @@ private fun SupportMessageBubble(
     }
 }
 
-private suspend fun generateSupportResponse(userInput: String, user: User): String {
-    // Simulate processing time
-    kotlinx.coroutines.delay(1000)
-    
-    val input = userInput.lowercase()
-    
-    return when {
-        input.contains("order") && (input.contains("track") || input.contains("status")) -> {
-            "I can help you track your order! To check your order status:\n\n1. Go to 'Order Tracking' from your dashboard\n2. Your active orders will show current status\n3. For completed orders, check 'Order History'\n\nIf you need specific order details, please provide your order number and I'll look it up for you."
-        }
-        
-        input.contains("return") || input.contains("exchange") || input.contains("refund") -> {
-            "I'd be happy to help with returns and exchanges!\n\n📋 Return Policy:\n• 30-day return window\n• Items must be unused and in original packaging\n• Original receipt required\n\n🔄 How to return:\n1. Go to Order History\n2. Find your order\n3. Select 'Return Item'\n4. Follow the return process\n\nNeed help with a specific return? Let me know your order details!"
-        }
-        
-        input.contains("product") && (input.contains("available") || input.contains("stock")) -> {
-            "To check product availability:\n\n1. Browse our product catalog\n2. Available items show current stock\n3. Out-of-stock items are clearly marked\n\nLooking for something specific? Tell me the product name and I'll check our inventory for you!"
-        }
-        
-        input.contains("account") || input.contains("profile") || input.contains("password") -> {
-            "For account-related questions:\n\n👤 Profile Management:\n• Update your profile from the dashboard\n• Change personal information\n• Update contact details\n\n🔐 Password Issues:\n• Use 'Forgot Password' on login screen\n• Ensure strong password (8+ characters)\n\nNeed help with specific account settings? I'm here to guide you!"
-        }
-        
-        input.contains("payment") || input.contains("billing") || input.contains("card") -> {
-            "Payment and billing support:\n\n💳 Payment Methods:\n• Credit/Debit cards accepted\n• Cash on Delivery available\n• Secure payment processing\n\n📄 Billing Questions:\n• Order receipts sent via email\n• View payment history in Order History\n• Contact billing@lazstore.com for disputes\n\nHaving payment issues? Describe the problem and I'll help resolve it!"
-        }
-        
-        input.contains("delivery") || input.contains("shipping") -> {
-            "Shipping and delivery information:\n\n🚚 Delivery Options:\n• Standard delivery: 3-5 business days\n• Express delivery: 1-2 business days\n• Free shipping on orders over JOD 50\n\n📍 Tracking:\n• Track orders in real-time\n• SMS/email notifications\n• Delivery confirmation required\n\nQuestions about a specific delivery? Share your order details!"
-        }
-        
-        input.contains("cancel") -> {
-            "Order cancellation help:\n\n❌ Cancellation Policy:\n• Orders can be cancelled within 1 hour of placement\n• Processing orders may have restrictions\n• Full refund for cancelled orders\n\n📞 To cancel:\n1. Contact us immediately\n2. Provide order number\n3. Cancellation processed within 24 hours\n\nNeed to cancel an order? Give me your order number!"
-        }
-        
-        input.contains("help") || input.contains("support") -> {
-            "I'm here to help with all your LAZ Store needs!\n\n🛍️ I can assist with:\n• Order tracking and status\n• Product information\n• Returns and exchanges\n• Account management\n• Payment and billing\n• Shipping questions\n\n📞 Additional Support:\n• Email: support@lazstore.com\n• Phone: +962-123-4567\n• Hours: 9 AM - 6 PM (Sun-Thu)\n\nWhat specific area would you like help with?"
-        }
-        
-        else -> {
-            "Thank you for contacting LAZ Store support, ${user.username}!\n\nI understand you're asking about: \"$userInput\"\n\nI'm here to help! Could you provide a bit more detail about your specific question or issue? This will help me give you the most accurate assistance.\n\n🔍 Common topics I can help with:\n• Order tracking and management\n• Product availability and information\n• Returns, exchanges, and refunds\n• Account and billing questions\n• Shipping and delivery\n• Technical support\n\nFeel free to ask about any of these topics or describe your specific situation!"
-        }
-    }
-}

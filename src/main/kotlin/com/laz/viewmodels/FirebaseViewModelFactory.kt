@@ -8,7 +8,7 @@ import com.laz.repositories.FirebaseUserRepository
 
 import com.laz.repositories.FirebaseReturnsRepository
 import com.laz.repositories.FirebaseOrdersRepository
-import com.laz.repositories.FirebaseChatRepository
+import com.laz.repositories.SupportChatRepository
 import com.laz.services.FirebaseAuthService
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +30,7 @@ class SecureFirebaseViewModelFactory(
     private val firebaseCartRepository: FirebaseCartRepository,
     private val firebaseReturnsRepository: FirebaseReturnsRepository,
     private val firebaseOrdersRepository: FirebaseOrdersRepository,
-    private val firebaseChatRepository: FirebaseChatRepository,
+    private val supportChatRepository: SupportChatRepository,
     private val currentUser: StateFlow<User?>
 ) : ViewModelProvider.Factory {
 
@@ -77,9 +77,9 @@ class SecureFirebaseViewModelFactory(
                     currentUser = currentUser
                 ) as T
             }
-            FirebaseChatViewModel::class.java -> {
-                FirebaseChatViewModel(
-                    chatRepository = firebaseChatRepository
+            SupportChatViewModel::class.java -> {
+                SupportChatViewModel(
+                    repository = supportChatRepository
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
@@ -99,7 +99,7 @@ object FirebaseServices {
 
     val returnsRepository: FirebaseReturnsRepository by lazy { FirebaseReturnsRepository() }
     val ordersRepository: FirebaseOrdersRepository by lazy { FirebaseOrdersRepository() }
-    val chatRepository: FirebaseChatRepository by lazy { FirebaseChatRepository() }
+    val supportChatRepository: SupportChatRepository by lazy { SupportChatRepository() }
     val databaseService: com.laz.firebase.FirebaseDatabaseService by lazy { com.laz.firebase.FirebaseDatabaseService() }
     
     // Current user StateFlow that combines Firebase auth with User model data
@@ -180,7 +180,7 @@ object FirebaseServices {
             firebaseCartRepository = cartRepository,
             firebaseReturnsRepository = returnsRepository,
             firebaseOrdersRepository = ordersRepository,
-            firebaseChatRepository = chatRepository,
+            supportChatRepository = supportChatRepository,
             currentUser = currentUser
         )
     }

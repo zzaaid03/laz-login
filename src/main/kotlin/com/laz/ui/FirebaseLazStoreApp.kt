@@ -256,9 +256,19 @@ fun FirebaseLazStoreApp(
             }
             
             composable(Screen.Chat.route) {
-                FirebaseChatScreen(
-                    onBack = { navController.popBackStack() }
-                )
+                val currentUser = authState.user
+                if (currentUser != null) {
+                    CustomerSupportScreen(
+                        user = currentUser,
+                        onBack = { navController.popBackStack() }
+                    )
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
             }
             
             // Customer Shopping Screen - Product browsing for customers
@@ -387,9 +397,9 @@ fun FirebaseLazStoreApp(
             composable(Screen.EmployeeChatManagement.route) {
                 val currentUser = authState.user
                 if (currentUser != null) {
-                    EmployeeChatManagementScreen(
+                    EmployeeSupportScreen(
                         employee = currentUser,
-                        onNavigateBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() }
                     )
                 } else {
                     LaunchedEffect(Unit) {

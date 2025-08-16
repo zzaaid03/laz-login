@@ -54,6 +54,16 @@
       ".read": true,
       ".write": true
     },
+    "support_chats": {
+      ".indexOn": ["customerId", "customerName", "timestamp", "isActive"],
+      ".read": true,
+      ".write": true
+    },
+    "support_messages": {
+      ".indexOn": ["chatId", "senderId", "timestamp", "isFromCustomer"],
+      ".read": true,
+      ".write": true
+    },
     "test": {
       ".read": true,
       ".write": true
