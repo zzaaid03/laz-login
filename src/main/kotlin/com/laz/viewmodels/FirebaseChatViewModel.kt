@@ -61,18 +61,24 @@ class FirebaseChatViewModel(
         }
     }
 
-    // Start or get existing chat for customer
+    // Start customer chat session
     fun startCustomerChat(customerId: Long, customerName: String) {
+        android.util.Log.d("ChatViewModel", "🚀 Starting customer chat for: $customerName (ID: $customerId)")
         viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            
             try {
-                _isLoading.value = true
-                _errorMessage.value = null
-                
-                val chatId = chatRepository.getOrCreateCustomerChat(customerId, customerName)
+                // Create or get existing chat session
+                val chatId = chatRepository.createChatSession(customerId, customerName)
+                android.util.Log.d("ChatViewModel", "📱 Chat session created/retrieved: $chatId")
                 _currentChatId.value = chatId
+                
+                // Start listening to messages for this chat
                 loadChatMessages(chatId)
                 
             } catch (e: Exception) {
+                android.util.Log.e("ChatViewModel", "❌ Failed to start chat: ${e.message}")
                 _errorMessage.value = "Failed to start chat: ${e.message}"
                 _isLoading.value = false
             }
@@ -180,6 +186,25 @@ class FirebaseChatViewModel(
                 chatRepository.markMessagesAsRead(chatId, isEmployee)
             } catch (e: Exception) {
                 // Silent fail for read status - not critical
+            }
+        }
+    }
+
+    // End chat session (employee only)
+    fun endChatSession(chatId: String) {
+        android.util.Log.d("ChatViewModel", "🔚 Employee ending chat session: $chatId")
+        viewModelScope.launch {
+            try {
+                chatRepository.endChatSession(chatId)
+                // Refresh chat sessions list
+                loadChatSessions()
+                // Clear current chat if it's the one being ended
+                if (_currentChatId.value == chatId) {
+                    clearCurrentChat()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ChatViewModel", "❌ Failed to end chat: ${e.message}")
+                _errorMessage.value = "Failed to end chat: ${e.message}"
             }
         }
     }

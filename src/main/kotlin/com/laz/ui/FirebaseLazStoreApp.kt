@@ -183,7 +183,14 @@ fun FirebaseLazStoreApp(
                         navController.navigate(Screen.Login.route) {
                             popUpTo(0) { inclusive = true } 
                         }
-                    }
+                    },
+                    onNavigateToShopping = { navController.navigate(Screen.CustomerShopping.route) },
+                    onNavigateToCart = { navController.navigate(Screen.EnhancedCart.route) },
+                    onNavigateToProfile = { navController.navigate(Screen.ProfileScreen.route) },
+                    onNavigateToOrderHistory = { navController.navigate(Screen.OrderHistory.route) },
+                    onNavigateToOrderTracking = { navController.navigate(Screen.OrderTracking.route) },
+                    onNavigateToChat = { navController.navigate(Screen.Chat.route) },
+                    onNavigateToCustomerSupport = { navController.navigate(Screen.CustomerSupport.route) }
                 )
             }
             
@@ -312,8 +319,8 @@ fun FirebaseLazStoreApp(
             composable(Screen.OrderTracking.route) {
                 val currentUser = authState.user
                 if (currentUser != null) {
-                    FirebaseOrderHistoryScreen(
-                        currentUser = currentUser,
+                    OrderTrackingScreen(
+                        user = currentUser,
                         onNavigateBack = { navController.popBackStack() }
                     )
                 } else {
@@ -363,9 +370,9 @@ fun FirebaseLazStoreApp(
             composable(Screen.CustomerSupport.route) {
                 val currentUser = authState.user
                 if (currentUser != null) {
-                    CustomerChatScreen(
+                    CustomerSupportScreen(
                         user = currentUser,
-                        onNavigateBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() }
                     )
                 } else {
                     LaunchedEffect(Unit) {

@@ -11,11 +11,22 @@ import java.util.*
 
 class FirebaseChatRepository {
     private val database = FirebaseDatabase.getInstance()
-    private val chatMessagesRef = database.getReference("chat_messages")
+    private val chatMessagesRef = database.getReference("messages")
     private val chatSessionsRef = database.getReference("chat_sessions")
 
-    // Create a new chat session for a customer
+    // Find existing or create new chat session for a customer
     suspend fun createChatSession(customerId: Long, customerName: String): String {
+        android.util.Log.d("ChatRepository", "🔍 Looking for existing chat session for customer: $customerId")
+        
+        // First, check if customer already has an active chat session
+        val existingSession = findExistingChatSession(customerId)
+        if (existingSession != null) {
+            android.util.Log.d("ChatRepository", "✅ Found existing chat session: ${existingSession.chatId}")
+            return existingSession.chatId
+        }
+        
+        // Create new chat session if none exists
+        android.util.Log.d("ChatRepository", "🆕 Creating new chat session for customer: $customerId")
         val chatId = UUID.randomUUID().toString()
         val chatSession = ChatSession(
             chatId = chatId,
@@ -28,7 +39,30 @@ class FirebaseChatRepository {
         )
         
         chatSessionsRef.child(chatId).setValue(chatSession.toMap()).await()
+        android.util.Log.d("ChatRepository", "✅ New chat session created: $chatId")
         return chatId
+    }
+    
+    // Find existing active chat session for customer
+    private suspend fun findExistingChatSession(customerId: Long): ChatSession? {
+        return try {
+            val snapshot = chatSessionsRef
+                .orderByChild("customerId")
+                .equalTo(customerId.toDouble())
+                .get()
+                .await()
+            
+            for (child in snapshot.children) {
+                val session = child.toChatSession()
+                if (session != null && session.isActive) {
+                    return session
+                }
+            }
+            null
+        } catch (e: Exception) {
+            android.util.Log.e("ChatRepository", "Error finding existing chat session: ${e.message}")
+            null
+        }
     }
 
     // Send a message in a chat
@@ -41,6 +75,7 @@ class FirebaseChatRepository {
         employeeId: Long? = null,
         employeeName: String? = null
     ): String {
+        android.util.Log.d("ChatRepository", "💬 Sending message: chatId=$chatId, message='$message', isFromCustomer=$isFromCustomer")
         val messageId = UUID.randomUUID().toString()
         val chatMessage = ChatMessage(
             id = messageId,
@@ -56,7 +91,9 @@ class FirebaseChatRepository {
         )
         
         // Save message
+        android.util.Log.d("ChatRepository", "💾 Saving message to Firebase: messages/$chatId/$messageId")
         chatMessagesRef.child(chatId).child(messageId).setValue(chatMessage.toMap()).await()
+        android.util.Log.d("ChatRepository", "✅ Message saved successfully")
         
         // Update chat session
         updateChatSession(chatId, message, isFromCustomer)
@@ -167,6 +204,18 @@ class FirebaseChatRepository {
             "assignedEmployeeName" to employeeName
         )
         chatSessionsRef.child(chatId).updateChildren(updates).await()
+    }
+
+    // End chat session (employee only)
+    suspend fun endChatSession(chatId: String) {
+        android.util.Log.d("ChatRepository", "🔚 Ending chat session: $chatId")
+        val updates = mapOf(
+            "isActive" to false,
+            "lastMessage" to "Chat session ended by support",
+            "lastMessageTime" to System.currentTimeMillis()
+        )
+        chatSessionsRef.child(chatId).updateChildren(updates).await()
+        android.util.Log.d("ChatRepository", "✅ Chat session ended successfully")
     }
 
     // Extension functions for data conversion

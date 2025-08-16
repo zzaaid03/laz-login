@@ -30,13 +30,30 @@ fun OrderTrackingScreen(
     onNavigateBack: () -> Unit,
     ordersViewModel: FirebaseOrdersViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
+    android.util.Log.d("OrderTracking", "🚀 OrderTrackingScreen composable started")
     val orders by ordersViewModel.orders.collectAsState()
     val isLoading by ordersViewModel.isLoading.collectAsState()
     val errorMessage by ordersViewModel.errorMessage.collectAsState()
-
-    // Load orders when screen opens
+    
+    // Debug: Log StateFlow collection
     LaunchedEffect(Unit) {
-        ordersViewModel.loadOrders()
+        android.util.Log.d("OrderTracking", "🎯 Starting to collect orders StateFlow from ViewModel ${ordersViewModel.hashCode()}")
+        ordersViewModel.orders.collect { ordersList ->
+            android.util.Log.d("OrderTracking", "🔄 StateFlow emitted ${ordersList.size} orders to UI")
+        }
+    }
+
+    // Debug logging
+    LaunchedEffect(user.id) {
+        android.util.Log.d("OrderTracking", "🔍 OrderTrackingScreen loaded for user ID: ${user.id}")
+        android.util.Log.d("OrderTracking", "👤 User: ${user.username}, Role: ${user.role}")
+    }
+    
+    LaunchedEffect(orders) {
+        android.util.Log.d("OrderTracking", "📊 Orders received in UI: ${orders.size}")
+        orders.forEach { order ->
+            android.util.Log.d("OrderTracking", "📦 Order ${order.id}: customerId=${order.customerId}, status=${order.status}")
+        }
     }
 
     Scaffold(
@@ -135,13 +152,21 @@ fun OrderTrackingScreen(
                     }
                 }
             } else {
-                // Filter for current/active orders only (PENDING, CONFIRMED, PROCESSING, SHIPPED)
+                // Filter for current user's active orders only (PENDING, CONFIRMED, PROCESSING, SHIPPED)
+                android.util.Log.d("OrderTracking", "🔍 Filtering orders for user ${user.id}")
+                android.util.Log.d("OrderTracking", "📊 Total orders received: ${orders.size}")
                 val currentOrders = orders.filter { order ->
-                    order.status == OrderStatus.PENDING ||
-                    order.status == OrderStatus.CONFIRMED ||
-                    order.status == OrderStatus.PROCESSING ||
-                    order.status == OrderStatus.SHIPPED
+                    val isUserOrder = order.customerId == user.id
+                    val isActiveStatus = (
+                        order.status == OrderStatus.PENDING ||
+                        order.status == OrderStatus.CONFIRMED ||
+                        order.status == OrderStatus.PROCESSING ||
+                        order.status == OrderStatus.SHIPPED
+                    )
+                    android.util.Log.d("OrderTracking", "📦 Order ${order.id}: customerId=${order.customerId}, status=${order.status}, isUserOrder=$isUserOrder, isActiveStatus=$isActiveStatus")
+                    isUserOrder && isActiveStatus
                 }
+                android.util.Log.d("OrderTracking", "✅ Filtered to ${currentOrders.size} active orders for user ${user.id}")
                 
                 if (currentOrders.isEmpty()) {
                     // No current orders
