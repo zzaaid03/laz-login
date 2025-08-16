@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android") version "1.9.22"
     id("com.google.devtools.ksp") version "1.9.22-1.0.17"
     id("org.jetbrains.kotlin.plugin.parcelize") version "1.9.22"
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22"
     // Add the Google services Gradle plugin
     id("com.google.gms.google-services") version "4.3.13"
 }
@@ -133,11 +134,11 @@ dependencies {
     // Firebase BOM - ensures compatible versions
     implementation(platform("com.google.firebase:firebase-bom:31.5.0"))
     
-    // Firebase dependencies - no version numbers needed with BOM
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-auth-ktx")
+    // Firebase dependencies - no version numbers needed
     implementation("com.google.firebase:firebase-database-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-config-ktx")
     
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -148,9 +149,13 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // Chat Bot
-    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation ("com.squareup.okhttp3:logging-interceptor:4.9.3")
+    // AI Chatbot Dependencies
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+    implementation("org.jsoup:jsoup:1.17.2")
+    
+    // Firebase Firestore
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    
 
 }

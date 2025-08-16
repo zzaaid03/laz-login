@@ -126,7 +126,8 @@ fun FirebaseLazStoreApp(
                         onNavigateToPointOfSale = { navController.navigate(Screen.PointOfSale.route) },
                         onNavigateToReturnsProcessing = { navController.navigate(Screen.ReturnsProcessing.route) },
                         onNavigateToOrderAnalytics = { navController.navigate(Screen.OrderAnalytics.route) },
-                        onNavigateToOrderManagement = { navController.navigate(Screen.OrderManagement.route) }
+                        onNavigateToOrderManagement = { navController.navigate(Screen.OrderManagement.route) },
+                        onNavigateToAIPotentialOrders = { navController.navigate("admin_potential_orders") }
                     )
                 } else {
                     // User is null, navigate to login
@@ -190,7 +191,8 @@ fun FirebaseLazStoreApp(
                     onNavigateToOrderHistory = { navController.navigate(Screen.OrderHistory.route) },
                     onNavigateToOrderTracking = { navController.navigate(Screen.OrderTracking.route) },
                     onNavigateToChat = { navController.navigate(Screen.Chat.route) },
-                    onNavigateToCustomerSupport = { navController.navigate(Screen.CustomerSupport.route) }
+                    onNavigateToCustomerSupport = { navController.navigate(Screen.CustomerSupport.route) },
+                    onNavigateToAIChat = { navController.navigate("ai_chat/${user.id}/${user.username}") }
                 )
             }
             
@@ -269,6 +271,24 @@ fun FirebaseLazStoreApp(
                         }
                     }
                 }
+            }
+            
+            // AI Parts Chat Screen
+            composable("ai_chat/{customerId}/{customerName}") { backStackEntry ->
+                val customerId = backStackEntry.arguments?.getString("customerId") ?: ""
+                val customerName = backStackEntry.arguments?.getString("customerName") ?: ""
+                TeslaPartsAIChatScreen(
+                    customerId = customerId,
+                    customerName = customerName,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            
+            // Admin AI Potential Orders Screen
+            composable("admin_potential_orders") {
+                AdminPotentialOrdersScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             
             // Customer Shopping Screen - Product browsing for customers

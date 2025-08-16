@@ -42,6 +42,7 @@ fun AdminDashboardScreen(
     onNavigateToReturnsProcessing: () -> Unit,
     onNavigateToOrderAnalytics: () -> Unit,
     onNavigateToOrderManagement: () -> Unit,
+    onNavigateToAIPotentialOrders: () -> Unit = {},
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     userViewModel: SecureFirebaseUserViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     returnsViewModel: FirebaseReturnsViewModel = viewModel(factory = FirebaseServices.viewModelFactory),
@@ -254,6 +255,14 @@ fun AdminDashboardScreen(
                         icon = Icons.Default.People,
                         modifier = Modifier.weight(1f),
                         onClick = onNavigateToUserManagement
+                    )
+                    
+                    ActionCard(
+                        title = "AI Parts Orders",
+                        description = "Review customer AI requests",
+                        icon = Icons.Default.SmartToy,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToAIPotentialOrders
                     )
                 }
             }

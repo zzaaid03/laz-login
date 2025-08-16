@@ -38,6 +38,7 @@ fun CustomerDashboardScreen(
     onNavigateToOrderTracking: () -> Unit = {},
     onNavigateToChat: () -> Unit = {},
     onNavigateToCustomerSupport: () -> Unit = {},
+    onNavigateToAIChat: () -> Unit = {},
     productViewModel: SecureFirebaseProductViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory),
     cartViewModel: SecureFirebaseCartViewModel = viewModel(factory = FirebaseServices.secureViewModelFactory)
 ) {
@@ -260,19 +261,33 @@ fun CustomerDashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ActionCard(
-                            title = "Ask for new!",
-                            description = "Here is your special Orders" +
-                                    "Powered by AI",
+                            title = "AI Parts Assistant",
+                            description = "Find Tesla parts with AI help",
+                            icon = Icons.Default.SmartToy,
+                            modifier = Modifier.weight(1f)
+                        ) { onNavigateToAIChat() }
+                        
+                        ActionCard(
+                            title = "Chat Support",
+                            description = "Get help from our assistant",
                             icon = Icons.AutoMirrored.Filled.Chat,
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToChat() }
-                        
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         ActionCard(
                             title = "Customer Support",
                             description = "Get help and assistance",
                             icon = Icons.Default.SupportAgent,
                             modifier = Modifier.weight(1f)
                         ) { onNavigateToCustomerSupport() }
+                        
+                        // Empty space for symmetry
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
