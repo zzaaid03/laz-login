@@ -136,9 +136,13 @@ dependencies {
     
     // Firebase dependencies - no version numbers needed
     implementation("com.google.firebase:firebase-database-ktx")
+<<<<<<< Updated upstream
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-config-ktx")
+=======
+    implementation("com.google.firebase:firebase-storage-ktx")
+>>>>>>> Stashed changes
     
     // Testing
     testImplementation("junit:junit:4.13.2")
