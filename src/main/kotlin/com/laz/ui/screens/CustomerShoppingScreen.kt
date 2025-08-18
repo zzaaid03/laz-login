@@ -1,22 +1,31 @@
 package com.laz.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.laz.models.Product
 import com.laz.viewmodels.SecureFirebaseProductViewModel
 import com.laz.viewmodels.SecureFirebaseCartViewModel
-import com.laz.ui.components.FloatingCartSummary
 import com.laz.ui.components.ProductImageDisplay
+import com.laz.ui.components.FloatingCartSummary
 
 /**
  * Customer Shopping Screen
@@ -43,46 +52,108 @@ fun CustomerShoppingScreen(
     val cartOperationSuccess by cartViewModel.operationSuccess.collectAsState()
     val cartError by cartViewModel.errorMessage.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Shop Products") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    // Cart Icon with Badge
-                    BadgedBox(
-                        badge = {
-                            if (cartItemCount > 0) {
-                                Badge {
-                                    Text(cartItemCount.toString())
+    // Animation states
+    var isVisible by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
+            )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Custom Header
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = slideInVertically(
+                    initialOffsetY = { -60 },
+                    animationSpec = tween(500)
+                ) + fadeIn(animationSpec = tween(500))
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "Shop Products",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "Browse our Tesla parts collection",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Cart badge
+                            BadgedBox(
+                                badge = {
+                                    if (cartItemCount > 0) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.error
+                                        ) {
+                                            Text(
+                                                text = cartItemCount.toString(),
+                                                color = MaterialTheme.colorScheme.onError,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                IconButton(
+                                    onClick = onNavigateToCart,
+                                    modifier = Modifier.background(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        CircleShape
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ShoppingCart,
+                                        contentDescription = "Cart",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
                                 }
                             }
                         }
-                    ) {
-                        IconButton(onClick = onNavigateToCart) {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = "Cart")
-                        }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.tertiary,
-                    titleContentColor = MaterialTheme.colorScheme.onTertiary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onTertiary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onTertiary
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
+                }
+            }
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
             // Permission Error Display
             permissionError?.let { error ->
                 Card(
@@ -109,35 +180,56 @@ fun CustomerShoppingScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Customer Welcome Message
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
-            ) {
-                Row(
-                    modifier = Modifier.padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Customer Welcome Message with animation
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = slideInVertically(
+                        initialOffsetY = { 40 },
+                        animationSpec = tween(600, delayMillis = 200)
+                    ) + fadeIn(animationSpec = tween(600, delayMillis = 200))
                 ) {
-                    Icon(
-                        Icons.Default.ShoppingBag,
-                        contentDescription = "Shopping",
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Column {
-                        Text(
-                            text = "Welcome to LAZ Store!",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-                        Text(
-                            text = "Browse our products and add items to your cart.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.ShoppingBag,
+                                    contentDescription = "Shopping",
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Welcome to LAZ Store!",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "Browse our Tesla parts and add items to your cart.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
-            }
             
             Spacer(modifier = Modifier.height(8.dp))
             
@@ -179,17 +271,25 @@ fun CustomerShoppingScreen(
                     }
                 }
             } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = slideInVertically(
+                        initialOffsetY = { 40 },
+                        animationSpec = tween(600, delayMillis = 400)
+                    ) + fadeIn(animationSpec = tween(600, delayMillis = 400))
                 ) {
-                    items(products) { product ->
-                        CustomerProductCard(
-                            product = product,
-                            onAddToCart = { productId, quantity ->
-                                cartViewModel.addToCart(productId, quantity)
-                            },
-                            canAddToCart = cartViewModel.canUseShoppingCart()
-                        )
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(products) { product ->
+                            CustomerProductCard(
+                                product = product,
+                                onAddToCart = { productId, quantity ->
+                                    cartViewModel.addToCart(productId, quantity)
+                                },
+                                canAddToCart = cartViewModel.canUseShoppingCart()
+                            )
+                        }
                     }
                 }
             }
@@ -225,14 +325,17 @@ fun CustomerShoppingScreen(
             cartOperationSuccess?.let { success ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiary),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         text = success,
-                        modifier = Modifier.padding(8.dp),
-                        color = Color.White
+                        modifier = Modifier.padding(12.dp),
+                        color = MaterialTheme.colorScheme.onTertiary,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
+            }
             }
         }
     }
@@ -249,15 +352,13 @@ fun CustomerShoppingScreen(
         }
     }
     
-    // Floating Cart Summary - Show only if cart has items
-    if (cartItemCount > 0) {
-        FloatingCartSummary(
-            cartItemCount = cartItemCount,
-            cartTotal = cartTotal,
-            isVisible = true,
-            onCartClick = onNavigateToCart
-        )
-    }
+    // Floating Cart Summary
+    FloatingCartSummary(
+        cartItemCount = cartItemCount,
+        cartTotal = cartTotal,
+        isVisible = true,
+        onCartClick = onNavigateToCart
+    )
 }
 
 @Composable
@@ -271,122 +372,148 @@ private fun CustomerProductCard(
     
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Product Image - Bigger
+            ProductImageDisplay(
+                imageUrl = product.imageUrl,
+                modifier = Modifier
+                    .size(160.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        RoundedCornerShape(12.dp)
+                    )
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Product Name - Under image
+            Text(
+                text = product.name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Price - Under name
+            Text(
+                text = "JOD ${product.price}",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.secondary,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Stock Status (customer-friendly)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Product Image
-                ProductImageDisplay(
-                    imageUrl = product.imageUrl,
-                    modifier = Modifier.size(80.dp)
+                Icon(
+                    imageVector = when {
+                        product.quantity > 10 -> Icons.Default.CheckCircle
+                        product.quantity > 0 -> Icons.Default.Warning
+                        else -> Icons.Default.Cancel
+                    },
+                    contentDescription = "Stock Status",
+                    tint = when {
+                        product.quantity > 10 -> MaterialTheme.colorScheme.tertiary
+                        product.quantity > 0 -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.error
+                    },
+                    modifier = Modifier.size(16.dp)
                 )
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
-                Column(modifier = Modifier.weight(1f)) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when {
+                        product.quantity > 10 -> "In Stock"
+                        product.quantity > 0 -> "Limited Stock"
+                        else -> "Out of Stock"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = when {
+                        product.quantity > 10 -> MaterialTheme.colorScheme.tertiary
+                        product.quantity > 0 -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.error
+                    },
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Add to Cart Section - Full width button
+            if (canAddToCart && product.quantity > 0) {
+                Button(
+                    onClick = { showQuantityDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.AddShoppingCart,
+                        contentDescription = "Add to Cart",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = product.name,
-                        style = MaterialTheme.typography.titleLarge,
+                        "Add to Cart",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    Text(
-                        text = "$${product.price}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Spacer(modifier = Modifier.height(4.dp))
-                    
-                    // Stock Status (customer-friendly)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = when {
-                                product.quantity > 10 -> Icons.Default.CheckCircle
-                                product.quantity > 0 -> Icons.Default.Warning
-                                else -> Icons.Default.Cancel
-                            },
-                            contentDescription = "Stock Status",
-                            tint = when {
-                                product.quantity > 10 -> Color(0xFF4CAF50)
-                                product.quantity > 0 -> Color(0xFFFF9800)
-                                else -> MaterialTheme.colorScheme.error
-                            },
-                            modifier = Modifier.size(8.dp)
-                        )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = when {
-                                product.quantity > 10 -> "In Stock"
-                                product.quantity > 0 -> "Limited Stock"
-                                else -> "Out of Stock"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = when {
-                                product.quantity > 10 -> Color(0xFF4CAF50)
-                                product.quantity > 0 -> Color(0xFFFF9800)
-                                else -> MaterialTheme.colorScheme.error
-                            },
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
                 }
-                
-                // Add to Cart Section
-                if (canAddToCart && product.quantity > 0) {
-                    Column(
-                        horizontalAlignment = Alignment.End
-                    ) {
-                        Button(
-                            onClick = { showQuantityDialog = true },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.tertiary
-                            )
-                        ) {
-                            Icon(
-                                Icons.Default.AddShoppingCart,
-                                contentDescription = "Add to Cart",
-                                modifier = Modifier.size(9.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text("Add to Cart")
-                        }
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                        
-                        // Quick Add Button
-                        OutlinedButton(
-                            onClick = { onAddToCart(product.id, 1) },
-                            modifier = Modifier.size(width = 60.dp, height = 18.dp),
-                            contentPadding = PaddingValues(4.dp)
-                        ) {
-                            Text(
-                                "Quick Add",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                } else if (!canAddToCart) {
+            } else if (!canAddToCart) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
                     Text(
                         text = "Login to Purchase",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
                     )
-                } else {
+                }
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
                     Text(
                         text = "Out of Stock",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Medium
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
                     )
                 }
             }
