@@ -94,10 +94,26 @@ class SecureConfig private constructor() {
      * Get OpenRouter API Key
      */
     fun getOpenRouterApiKey(): String {
+        // Force refresh if not initialized or key is empty
+        if (!isInitialized || remoteConfig == null) {
+            Log.w(TAG, "⚠️ SecureConfig not initialized, using defaults")
+            return DEFAULT_OPENROUTER_KEY
+        }
+        
         val key = remoteConfig?.getString(OPENROUTER_API_KEY) ?: DEFAULT_OPENROUTER_KEY
         
-        if (key.isBlank()) {
+        if (key.isBlank() || key == DEFAULT_OPENROUTER_KEY) {
             Log.w(TAG, "⚠️ OpenRouter API key is empty - check Firebase Remote Config")
+            // Try to force a config refresh
+            try {
+                val freshKey = remoteConfig?.getString(OPENROUTER_API_KEY) ?: DEFAULT_OPENROUTER_KEY
+                if (freshKey.isNotBlank() && freshKey != DEFAULT_OPENROUTER_KEY) {
+                    Log.d(TAG, "✅ OpenRouter API key retrieved after refresh")
+                    return freshKey
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to refresh config", e)
+            }
             return DEFAULT_OPENROUTER_KEY
         }
         

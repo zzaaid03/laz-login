@@ -96,12 +96,7 @@ class OpenRouterAIService {
     private val secureConfig = com.laz.config.SecureConfig.getInstance()
     private val defaultModel = "anthropic/claude-3-5-sonnet"
     
-    init {
-        val apiKey = secureConfig.getOpenRouterApiKey()
-        android.util.Log.d("OpenRouterAI", "API Key loaded: ${if (apiKey.isNotBlank()) "✅ Valid" else "❌ Empty"}")
-        android.util.Log.d("OpenRouterAI", "API Key length: ${apiKey.length}")
-        android.util.Log.d("OpenRouterAI", "API Key starts with: ${apiKey.take(10)}...")
-    }
+    // Remove init block to avoid accessing API key before SecureConfig is ready
     
     suspend fun identifyTeslaPart(
         customerMessage: String,
@@ -183,9 +178,15 @@ class OpenRouterAIService {
         android.util.Log.d("OpenRouterAI", "Image URLs count: ${imageUrls.size}")
         android.util.Log.d("OpenRouterAI", "Image URLs: ${imageUrls.joinToString()}")
         
+        // Get API key with logging
+        val apiKey = secureConfig.getOpenRouterApiKey()
+        android.util.Log.d("OpenRouterAI", "API Key loaded: ${if (apiKey.isNotBlank()) "✅ Valid" else "❌ Empty"}")
+        android.util.Log.d("OpenRouterAI", "API Key length: ${apiKey.length}")
+        android.util.Log.d("OpenRouterAI", "API Key starts with: ${apiKey.take(10)}...")
+        
         val httpRequest = Request.Builder()
             .url(baseUrl)
-            .addHeader("Authorization", "Bearer ${secureConfig.getOpenRouterApiKey()}")
+            .addHeader("Authorization", "Bearer $apiKey")
             .addHeader("Content-Type", "application/json")
             .post(requestBody)
             .build()
