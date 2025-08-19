@@ -1,10 +1,12 @@
 package com.laz.viewmodels
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laz.models.Order
 import com.laz.models.OrderStatus
 import com.laz.models.User
+import com.laz.notifications.NotificationManager
 import com.laz.repositories.FirebaseOrdersRepository
 import com.laz.repositories.FirebaseProductRepository
 import com.laz.security.PermissionManager
@@ -19,8 +21,11 @@ import java.math.BigDecimal
 class FirebaseOrdersViewModel(
     private val ordersRepository: FirebaseOrdersRepository,
     private val productRepository: FirebaseProductRepository,
-    private val currentUser: StateFlow<User?>
+    private val currentUser: StateFlow<User?>,
+    private val context: Context?
 ) : ViewModel() {
+    
+    private val notificationManager = context?.let { NotificationManager(it) }
 
     private val _orders = MutableStateFlow<List<Order>>(emptyList())
     val orders: StateFlow<List<Order>> = _orders.asStateFlow()
@@ -161,6 +166,16 @@ class FirebaseOrdersViewModel(
                     android.util.Log.d("OrdersViewModel", "Order created successfully with ID: ${createdOrder?.id}")
                     _lastCreatedOrder.value = createdOrder
                     _operationSuccess.value = "Order created successfully! Order ID: ${createdOrder?.id}"
+                    
+                    // Send new order notifications to admin and employees
+                    createdOrder?.let { newOrder ->
+                        notificationManager?.notifyNewOrder(
+                            orderId = newOrder.id.toString(),
+                            customerName = newOrder.customerUsername,
+                            totalAmount = newOrder.totalAmount.toString()
+                        )
+                    }
+                    
                     loadOrders() // Refresh the list
                 } else {
                     android.util.Log.e("OrdersViewModel", "Failed to create order: ${result.exceptionOrNull()?.message}")
@@ -195,6 +210,14 @@ class FirebaseOrdersViewModel(
                 val result = ordersRepository.updateOrderStatus(orderId, status, trackingNumber)
                 if (result.isSuccess) {
                     _operationSuccess.value = "Order status updated to ${status.displayName}"
+                    
+                    // Send order status update notification to customer
+                    notificationManager?.notifyOrderStatusUpdate(
+                        orderId = orderId.toString(),
+                        newStatus = status.name,
+                        trackingNumber = trackingNumber
+                    )
+                    
                     loadOrders() // Refresh the list
                 } else {
                     _errorMessage.value = "Failed to update order status: ${result.exceptionOrNull()?.message}"

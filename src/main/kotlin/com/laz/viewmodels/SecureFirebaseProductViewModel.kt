@@ -1,9 +1,11 @@
 package com.laz.viewmodels
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laz.models.Product
 import com.laz.models.User
+import com.laz.notifications.NotificationManager
 import com.laz.repositories.FirebaseProductRepository
 import com.laz.security.PermissionManager
 import kotlinx.coroutines.flow.*
@@ -15,8 +17,11 @@ import kotlinx.coroutines.launch
  */
 class SecureFirebaseProductViewModel(
     private val productRepository: FirebaseProductRepository,
-    private val currentUser: StateFlow<User?>
+    private val currentUser: StateFlow<User?>,
+    private val context: Context?
 ) : ViewModel() {
+    
+    private val notificationManager = context?.let { NotificationManager(it) }
 
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products: StateFlow<List<Product>> = _products.asStateFlow()
@@ -357,6 +362,19 @@ class SecureFirebaseProductViewModel(
         } catch (e: Exception) {
             println("DEBUG: Error getting product by ID $productId: ${e.message}")
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Check for low stock products and notify admin
+     */
+    private fun checkLowStockAndNotify() {
+        viewModelScope.launch {
+            try {
+                notificationManager?.checkLowStockAndNotify()
+            } catch (e: Exception) {
+                println("DEBUG: Error checking low stock: ${e.message}")
+            }
         }
     }
 }

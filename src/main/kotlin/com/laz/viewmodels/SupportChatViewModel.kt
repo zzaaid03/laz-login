@@ -1,16 +1,21 @@
 package com.laz.viewmodels
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laz.models.SupportMessage
 import com.laz.models.SupportChat
+import com.laz.notifications.NotificationManager
 import com.laz.repositories.SupportChatRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class SupportChatViewModel(
-    private val repository: SupportChatRepository
+    private val repository: SupportChatRepository,
+    private val context: Context?
 ) : ViewModel() {
+    
+    private val notificationManager = context?.let { NotificationManager(it) }
 
     private val _currentChatId = MutableStateFlow<String?>(null)
     val currentChatId: StateFlow<String?> = _currentChatId.asStateFlow()
@@ -73,6 +78,23 @@ class SupportChatViewModel(
                     isFromCustomer = isFromCustomer,
                     employeeName = employeeName
                 )
+                
+                // Send notifications based on who sent the message
+                if (isFromCustomer) {
+                    // Customer sent message - notify employees
+                    notificationManager?.notifyCustomerChatMessage(
+                        chatId = chatId,
+                        customerName = customerName,
+                        message = message
+                    )
+                } else {
+                    // Employee sent message - notify customer
+                    notificationManager?.notifySupportChatMessage(
+                        chatId = chatId,
+                        agentName = employeeName.ifEmpty { "Support Agent" },
+                        message = message
+                    )
+                }
             } catch (e: Exception) {
                 _error.value = "Failed to send message: ${e.message}"
             }

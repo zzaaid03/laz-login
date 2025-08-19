@@ -157,5 +157,10 @@ dependencies {
     // Firebase Firestore
     implementation("com.google.firebase:firebase-firestore-ktx")
     
+    // Firebase Cloud Messaging for notifications
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    
+    // WorkManager for scheduled notifications
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
 }
