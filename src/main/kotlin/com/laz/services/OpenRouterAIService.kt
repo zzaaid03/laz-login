@@ -72,7 +72,6 @@ data class ColorFinishObject(
 @Serializable
 data class AIPartIdentification(
     @SerialName("partName") val partName: String,
-    @SerialName("searchTerms") val searchTerms: List<String>,
     @SerialName("category") val category: String,
     @SerialName("teslaModels") val teslaModels: List<String>,
     @SerialName("confidence") val confidence: Double,
@@ -82,7 +81,11 @@ data class AIPartIdentification(
     @SerialName("photoAnalysis") val photoAnalysis: String = "",
     @SerialName("damageAssessment") val damageAssessment: String = "",
     @SerialName("colorFinish") val colorFinish: ColorFinishObject = ColorFinishObject(),
-    @SerialName("estimatedSize") val estimatedSize: String = ""
+    @SerialName("estimatedSize") val estimatedSize: String = "",
+    @SerialName("globalPriceEstimate") val globalPriceEstimate: Double,
+    @SerialName("priceRange") val priceRange: String = "",
+    @SerialName("deliveryEstimate") val deliveryEstimate: String = "",
+    @SerialName("qualityLevel") val qualityLevel: String = ""
 )
 
 class OpenRouterAIService {
@@ -116,7 +119,6 @@ class OpenRouterAIService {
                 success = false,
                 error = "Failed to identify part: ${e.message}",
                 partName = "",
-                searchTerms = emptyList(),
                 confidence = 0.0
             )
         }
@@ -124,12 +126,11 @@ class OpenRouterAIService {
     
     suspend fun generateCustomerResponse(
         partIdentification: PartIdentificationResult,
-        aliexpressProducts: List<com.laz.models.AliexpressProduct>,
         customerMessage: String
     ): String = withContext(Dispatchers.IO) {
         try {
             val systemPrompt = buildCustomerResponseSystemPrompt()
-            val userPrompt = buildCustomerResponsePrompt(partIdentification, aliexpressProducts, customerMessage)
+            val userPrompt = buildCustomerResponsePrompt(partIdentification, customerMessage)
             
             callOpenRouter(systemPrompt, userPrompt)
         } catch (e: Exception) {
@@ -270,18 +271,24 @@ class OpenRouterAIService {
         - Missing pieces or broken clips
         - Wear patterns
         
-        SPECIFICATION GATHERING:
-        After identifying a part, always ask for:
-        - Tesla model year and variant
-        - Preferred color/finish
-        - Size specifications if applicable
-        - Quality preference (OEM, aftermarket, budget)
-        - Installation preference (DIY or professional)
+        GLOBAL PRICING EXPERTISE:
+        Provide accurate global market price estimates based on:
+        - Part complexity and material (carbon fiber, painted plastic, OEM vs aftermarket)
+        - Tesla model compatibility and rarity
+        - Current global market trends for Tesla parts
+        - Quality levels: Budget ($15-40), Mid-range ($40-80), Premium ($80-150+)
+        - Include shipping and handling in estimates
+        - Factor in 20% service margin for final customer price
+        
+        DELIVERY ESTIMATES:
+        - Standard parts: 10-20 days
+        - Custom/rare parts: 15-30 days
+        - OEM parts: 20-35 days
+        - Express shipping available: +$15-25
         
         CRITICAL: Respond with EXACTLY this JSON structure - no deviations:
 {
     "partName": "string",
-    "searchTerms": ["string1", "string2", "string3"],
     "category": "string", 
     "teslaModels": ["Model 3", "Model Y"],
     "confidence": 0.95,
@@ -295,13 +302,20 @@ class OpenRouterAIService {
         "pattern": "string", 
         "finish": "string"
     },
-    "estimatedSize": "string"
+    "estimatedSize": "string",
+    "globalPriceEstimate": 65.50,
+    "priceRange": "$45-85 depending on quality",
+    "deliveryEstimate": "15-25 days standard shipping",
+    "qualityLevel": "Premium aftermarket quality"
 }
 
 MANDATORY RULES:
 - colorFinish MUST be an object with material, pattern, finish fields
 - specifications MUST be an array of strings
-- searchTerms MUST be an array of strings
+- globalPriceEstimate MUST be a number (final price including shipping + 20% margin)
+- priceRange MUST show the range of available options
+- deliveryEstimate MUST include realistic timeframes
+- qualityLevel MUST indicate expected quality tier
 - Do NOT add extra text after the JSON
 - Do NOT use different field types than specified
     """.trimIndent()
@@ -346,24 +360,30 @@ MANDATORY RULES:
            - Color preference (أي لون تفضل؟ / What color do you prefer?)
            - Size/dimensions if relevant (أي مقاس؟ / What size?)
            - Quality level (جودة أصلية أم بديلة؟ / OEM or aftermarket quality?)
-        3. Present found AliExpress options with prices
-        4. Explain pricing includes shipping and service fee
-        5. Ask for confirmation to create potential order
-        6. Be friendly, professional, and knowledgeable
+        3. Present the global price estimate with delivery information
+        4. Explain pricing includes shipping, handling, and service fee
+        5. Mention available quality options and price ranges
+        6. Ask for confirmation to create potential order
+        7. Be friendly, professional, and knowledgeable
         
         PHOTO ANALYSIS RESPONSES:
         When customer sends photos, always:
         1. Describe what you see in the image
         2. Identify the specific part and any damage
         3. Ask clarifying questions about specifications
-        4. Suggest appropriate replacement options
+        4. Provide realistic price estimates and delivery times
+        
+        PRICING COMMUNICATION:
+        - Always present the final price estimate clearly
+        - Mention the price range for different quality levels
+        - Explain delivery timeframes realistically
+        - Be transparent about what's included in the price
         
         Keep responses helpful and conversational. Use emojis appropriately for friendliness.
     """.trimIndent()
     
     private fun buildCustomerResponsePrompt(
         partIdentification: PartIdentificationResult,
-        products: List<com.laz.models.AliexpressProduct>,
         customerMessage: String
     ): String = """
         Customer message: $customerMessage
@@ -379,18 +399,25 @@ MANDATORY RULES:
         SPECIFICATIONS NEEDED:
         ${partIdentification.specifications.joinToString("\n") { "- $it" }}
         
-        FOUND PRODUCTS:
-        ${products.take(3).joinToString("\n") { 
-            "- ${it.title}: ${it.totalCost} JOD (شامل الشحن والخدمة / including shipping and service fee)"
-        }}
+        PRICING INFORMATION:
+        - Estimated Price: ${partIdentification.globalPriceEstimate} JOD (شامل الشحن والخدمة / including shipping and service fee)
+        - Price Range: ${partIdentification.priceRange}
+        - Quality Level: ${partIdentification.qualityLevel}
+        - Delivery Time: ${partIdentification.deliveryEstimate}
+        
+        PHOTO ANALYSIS:
+        ${if (partIdentification.photoAnalysis.isNotEmpty()) "- Analysis: ${partIdentification.photoAnalysis}" else ""}
+        ${if (partIdentification.damageAssessment.isNotEmpty()) "- Condition: ${partIdentification.damageAssessment}" else ""}
         
         INSTRUCTIONS:
         1. Respond in the detected language (Arabic if "ar", English if "en")
-        2. If photo was analyzed, describe what you identified
-        3. Ask for the missing specifications before showing products
-        4. Present products with clear pricing
-        5. Ask for confirmation to create order
-        6. Be helpful and professional
+        2. If photo was analyzed, describe what you identified from the image
+        3. Ask for the missing specifications if any are needed
+        4. Present the price estimate with clear explanation of what's included
+        5. Mention the price range for different quality options
+        6. Explain delivery timeframe
+        7. Ask for confirmation to create potential order
+        8. Be helpful and professional
     """.trimIndent()
     
     private fun parsePartIdentificationResponse(response: String): PartIdentificationResult {
@@ -414,7 +441,6 @@ MANDATORY RULES:
                 return PartIdentificationResult(
                     success = true,
                     partName = aiResult.partName,
-                    searchTerms = aiResult.searchTerms,
                     category = aiResult.category,
                     teslaModels = aiResult.teslaModels,
                     confidence = aiResult.confidence,
@@ -424,7 +450,11 @@ MANDATORY RULES:
                     photoAnalysis = aiResult.photoAnalysis,
                     damageAssessment = aiResult.damageAssessment,
                     colorFinish = aiResult.colorFinish,
-                    estimatedSize = aiResult.estimatedSize
+                    estimatedSize = aiResult.estimatedSize,
+                    globalPriceEstimate = aiResult.globalPriceEstimate,
+                    priceRange = aiResult.priceRange,
+                    deliveryEstimate = aiResult.deliveryEstimate,
+                    qualityLevel = aiResult.qualityLevel
                 )
             } catch (e: Exception) {
                 Log.w("OpenRouterAI", "Direct parsing failed, trying fallback: ${e.message}")
@@ -440,7 +470,6 @@ MANDATORY RULES:
                     success = false,
                     error = "Failed to parse AI response",
                     partName = "",
-                    searchTerms = emptyList(),
                     confidence = 0.0
                 )
             }
@@ -450,7 +479,6 @@ MANDATORY RULES:
                 success = false,
                 error = "Failed to parse AI response: ${e.message}",
                 partName = "",
-                searchTerms = emptyList(),
                 confidence = 0.0
             )
         }
@@ -475,15 +503,18 @@ MANDATORY RULES:
                 listOf(partName, "Tesla $partName").filter { it.isNotBlank() }
             }
             
-            if (partName.isNotEmpty() && searchTerms.isNotEmpty()) {
+            if (partName.isNotEmpty()) {
                 PartIdentificationResult(
                     success = true,
                     partName = partName,
-                    searchTerms = searchTerms,
                     category = category,
                     confidence = confidence,
                     description = "Part identified from fallback parsing",
-                    language = if (response.contains("[ا-ي]".toRegex())) "ar" else "en"
+                    language = if (response.contains("[ا-ي]".toRegex())) "ar" else "en",
+                    globalPriceEstimate = 50.0, // Default fallback price
+                    priceRange = "$30-70 estimated range",
+                    deliveryEstimate = "15-25 days",
+                    qualityLevel = "Standard quality"
                 )
             } else {
                 null
@@ -498,7 +529,6 @@ data class PartIdentificationResult(
     val success: Boolean,
     val error: String = "",
     val partName: String,
-    val searchTerms: List<String>,
     val category: String = "",
     val teslaModels: List<String> = emptyList(),
     val confidence: Double,
@@ -508,5 +538,9 @@ data class PartIdentificationResult(
     val photoAnalysis: String = "",
     val damageAssessment: String = "",
     val colorFinish: ColorFinishObject = ColorFinishObject(),
-    val estimatedSize: String = ""
+    val estimatedSize: String = "",
+    val globalPriceEstimate: Double = 0.0,
+    val priceRange: String = "",
+    val deliveryEstimate: String = "",
+    val qualityLevel: String = ""
 )

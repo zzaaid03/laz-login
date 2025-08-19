@@ -23,11 +23,15 @@ data class RequestedPart(
     val partName: String = "",
     val description: String = "",
     val customerImages: List<String> = emptyList(), // Firebase Storage URLs
-    val aliexpressLinks: List<AliexpressProduct> = emptyList(),
-    val selectedProduct: AliexpressProduct? = null,
+    val aliexpressLinks: List<AliexpressProduct> = emptyList(), // Legacy field, kept for compatibility
+    val selectedProduct: AliexpressProduct? = null, // Legacy field, kept for compatibility
     val quantity: Int = 1,
     val estimatedCost: Double = 0.0,
-    val sellingPrice: Double = 0.0
+    val sellingPrice: Double = 0.0,
+    // New AI-generated pricing fields
+    val priceRange: String = "",
+    val deliveryEstimate: String = "",
+    val qualityLevel: String = ""
 )
 
 data class AliexpressProduct(

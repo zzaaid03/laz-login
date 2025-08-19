@@ -11,7 +11,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.laz.models.*
 import com.laz.services.OpenRouterAIService
-import com.laz.services.AliExpressSearchService
 import com.laz.repositories.FirebaseRealtimePotentialOrderRepository
 import android.net.Uri
 import com.google.firebase.storage.FirebaseStorage
@@ -21,7 +20,6 @@ import java.util.Date
 
 class TeslaPartsAIViewModel(
     private val aiService: OpenRouterAIService = OpenRouterAIService(),
-    private val aliExpressService: AliExpressSearchService = AliExpressSearchService(),
     private val potentialOrderRepository: FirebaseRealtimePotentialOrderRepository = FirebaseRealtimePotentialOrderRepository(),
     private val firebaseStorage: FirebaseStorage = FirebaseStorage.getInstance()
 ) : ViewModel() {
@@ -35,8 +33,8 @@ class TeslaPartsAIViewModel(
     private val _currentChatSession = MutableStateFlow<String?>(null)
     val currentChatSession: StateFlow<String?> = _currentChatSession.asStateFlow()
 
-    private val _foundProducts = MutableStateFlow<List<AliexpressProduct>>(emptyList())
-    val foundProducts: StateFlow<List<AliexpressProduct>> = _foundProducts.asStateFlow()
+    private val _priceEstimate = MutableStateFlow<Double>(0.0)
+    val priceEstimate: StateFlow<Double> = _priceEstimate.asStateFlow()
 
     private val _currentPartIdentification = MutableStateFlow<PartIdentificationResult?>(null)
     val currentPartIdentification: StateFlow<PartIdentificationResult?> = _currentPartIdentification.asStateFlow()
@@ -48,7 +46,7 @@ class TeslaPartsAIViewModel(
         val sessionId = "chat_${System.currentTimeMillis()}_${customerId}"
         _currentChatSession.value = sessionId
         _chatMessages.value = emptyList()
-        _foundProducts.value = emptyList()
+        _priceEstimate.value = 0.0
         _currentPartIdentification.value = null
         _errorMessage.value = null
         
@@ -116,32 +114,17 @@ class TeslaPartsAIViewModel(
             }
 
             _currentPartIdentification.value = partIdentification
-            addBotMessage("I've identified this as: ${partIdentification.partName}. Let me search for available options...")
+            _priceEstimate.value = partIdentification.globalPriceEstimate
+            
+            addBotMessage("I've identified this as: ${partIdentification.partName}. Let me provide you with pricing information...")
 
-            // Step 2: Search AliExpress for products using proper search terms
-            val searchTerms = if (partIdentification.searchTerms.isNotEmpty()) {
-                partIdentification.searchTerms
-            } else {
-                // Fallback: use part name and category
-                listOf(partIdentification.partName, partIdentification.category).filter { it.isNotBlank() }
-            }
-            
-            val products = aliExpressService.searchProducts(searchTerms, maxResults = 5)
-            
-            if (products.isEmpty()) {
-                addBotMessage("I couldn't find any matching products right now. Please try a different description or contact our support team.")
-                return
-            }
-
-            _foundProducts.value = products
-            
-            // Step 3: Generate customer response with AI
-            val aiResponse = aiService.generateCustomerResponse(partIdentification, products, message)
+            // Step 2: Generate customer response with AI-generated pricing
+            val aiResponse = aiService.generateCustomerResponse(partIdentification, message)
             addBotMessage(aiResponse)
             
-            // Add product options message
-            val productOptionsMessage = buildProductOptionsMessage(products)
-            addBotMessage(productOptionsMessage)
+            // Add pricing summary message
+            val pricingSummary = buildPricingSummaryMessage(partIdentification)
+            addBotMessage(pricingSummary)
 
         } catch (e: Exception) {
             addBotMessage("I encountered an error while processing your request. Please try again or contact support.")
@@ -149,31 +132,28 @@ class TeslaPartsAIViewModel(
         }
     }
 
-    private fun buildProductOptionsMessage(products: List<AliexpressProduct>): String {
+    private fun buildPricingSummaryMessage(partIdentification: PartIdentificationResult): String {
         val builder = StringBuilder()
-        builder.append("Here are the best options I found:\n\n")
-        
-        products.take(3).forEachIndexed { index, product ->
-            builder.append("${index + 1}. ${product.title}\n")
-            builder.append("   Price: ${product.totalCost} JOD (includes shipping & service fee)\n")
-            builder.append("   Rating: ${product.rating}/5 ⭐\n")
-            builder.append("   Delivery: ${product.deliveryTime}\n\n")
-        }
-        
-        builder.append("Would you like me to create a potential order for any of these options? Just let me know which one interests you!")
+        builder.append("💰 **Pricing Summary:**\n\n")
+        builder.append("📦 **${partIdentification.partName}**\n")
+        builder.append("💵 Estimated Price: **${partIdentification.globalPriceEstimate} JOD**\n")
+        builder.append("📊 Price Range: ${partIdentification.priceRange}\n")
+        builder.append("⭐ Quality Level: ${partIdentification.qualityLevel}\n")
+        builder.append("🚚 Delivery Time: ${partIdentification.deliveryEstimate}\n\n")
+        builder.append("✅ *Price includes shipping, handling, and service fee*\n\n")
+        builder.append("Would you like me to create a potential order for this part? Just confirm and I'll prepare the order details for our team to review!")
         return builder.toString()
     }
 
-    fun createPotentialOrder(customerId: String, customerName: String, selectedProductIndex: Int, quantity: Int = 1) {
+    fun createPotentialOrder(customerId: String, customerName: String, quantity: Int = 1) {
         viewModelScope.launch {
             try {
                 _isProcessing.value = true
                 
-                val selectedProduct = _foundProducts.value.getOrNull(selectedProductIndex)
                 val partIdentification = _currentPartIdentification.value
                 
-                if (selectedProduct == null || partIdentification == null) {
-                    _errorMessage.value = "Please select a valid product option"
+                if (partIdentification == null) {
+                    _errorMessage.value = "No part identified. Please start a new search."
                     return@launch
                 }
 
@@ -182,11 +162,14 @@ class TeslaPartsAIViewModel(
                     partName = partIdentification.partName,
                     description = partIdentification.description,
                     customerImages = _chatMessages.value.flatMap { it.imageUrls },
-                    aliexpressLinks = _foundProducts.value,
-                    selectedProduct = selectedProduct,
+                    aliexpressLinks = emptyList(), // No longer using AliExpress
+                    selectedProduct = null, // Using AI pricing instead
                     quantity = quantity,
-                    estimatedCost = selectedProduct.price + selectedProduct.shippingCost,
-                    sellingPrice = selectedProduct.totalCost
+                    estimatedCost = partIdentification.globalPriceEstimate * 0.8, // Estimated cost without margin
+                    sellingPrice = partIdentification.globalPriceEstimate,
+                    priceRange = partIdentification.priceRange,
+                    deliveryEstimate = partIdentification.deliveryEstimate,
+                    qualityLevel = partIdentification.qualityLevel
                 )
 
                 val potentialOrder = PotentialOrder(
@@ -244,13 +227,12 @@ class TeslaPartsAIViewModel(
 
     class Factory(
         private val aiService: OpenRouterAIService,
-        private val aliExpressService: AliExpressSearchService,
         private val potentialOrderRepository: FirebaseRealtimePotentialOrderRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(TeslaPartsAIViewModel::class.java)) {
-                return TeslaPartsAIViewModel(aiService, aliExpressService, potentialOrderRepository) as T
+                return TeslaPartsAIViewModel(aiService, potentialOrderRepository) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
