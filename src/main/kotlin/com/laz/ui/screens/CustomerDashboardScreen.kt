@@ -315,23 +315,12 @@ fun CustomerDashboardScreen(
                                     ) { onNavigateToAIChat() }
                                     
                                     ActionCard(
-                                        title = "Chat Support",
-                                        description = "Get help from our assistant",
-                                        icon = Icons.AutoMirrored.Filled.Chat,
-                                        modifier = Modifier.weight(1f)
-                                    ) { onNavigateToChat() }
-                                }
-                                
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    ActionCard(
                                         title = "Customer Support",
                                         description = "Get help and assistance",
                                         icon = Icons.Default.SupportAgent,
                                         modifier = Modifier.weight(1f)
                                     ) { onNavigateToCustomerSupport() }
+                                
                                     
                                     // Empty space for symmetry
                                     Spacer(modifier = Modifier.weight(1f))
