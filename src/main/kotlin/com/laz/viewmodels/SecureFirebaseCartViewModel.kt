@@ -1,9 +1,11 @@
 package com.laz.viewmodels
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.laz.models.CartItem
 import com.laz.models.User
+import com.laz.notifications.NotificationManager
 import com.laz.repositories.FirebaseCartRepository
 import com.laz.repositories.FirebaseProductRepository
 import com.laz.security.PermissionManager
@@ -18,8 +20,11 @@ import java.math.BigDecimal
 class SecureFirebaseCartViewModel(
     private val cartRepository: FirebaseCartRepository,
     private val productRepository: FirebaseProductRepository,
-    private val currentUser: StateFlow<User?>
+    private val currentUser: StateFlow<User?>,
+    private val context: Context?
 ) : ViewModel() {
+    
+    private val notificationManager = context?.let { NotificationManager(it) }
 
     private val _cartItems = MutableStateFlow<List<CartItem>>(emptyList())
     val cartItems: StateFlow<List<CartItem>> = _cartItems.asStateFlow()
@@ -213,12 +218,20 @@ class SecureFirebaseCartViewModel(
                             userId = user.id,
                             productId = productId,
                             quantity = quantity,
-                            addedAt = System.currentTimeMillis()
+                            addedAt = System.currentTimeMillis(),
+                            stockHoldExpiry = System.currentTimeMillis() + (5 * 60 * 1000) // 5 minutes
                         )
                         
                         val result = cartRepository.addCartItem(cartItem)
                         if (result.isSuccess) {
                             _operationSuccess.value = "Item added to cart"
+                            
+                            // Schedule stock hold expiry warning notification
+                            notificationManager?.scheduleCartHoldExpiryWarning(
+                                cartItemId = cartItem.id.toString(),
+                                productName = product.name,
+                                expiryTime = cartItem.stockHoldExpiry ?: (System.currentTimeMillis() + (5 * 60 * 1000))
+                            )
                         } else {
                             _errorMessage.value = "Failed to add to cart: ${result.exceptionOrNull()?.message}"
                         }

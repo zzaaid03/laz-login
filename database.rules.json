@@ -72,6 +72,28 @@
       ".indexOn": ["customerId", "status", "createdAt", "updatedAt"],
       ".read": true,
       ".write": true
+    },
+    "fcm_tokens": {
+      ".indexOn": ["userId", "role", "lastUpdated"],
+      "$userId": {
+        ".read": "$userId === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+        ".write": "$userId === auth.uid",
+        ".validate": "newData.hasChildren(['token', 'userId', 'role', 'lastUpdated']) && newData.child('userId').val() === $userId"
+      }
+    },
+    "notification_logs": {
+      ".indexOn": ["userId", "type", "timestamp", "status"],
+      "$logId": {
+        ".read": "auth != null && (data.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+        ".write": "auth != null && (newData.child('userId').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')"
+      }
+    },
+    "notification_settings": {
+      "$userId": {
+        ".read": "$userId === auth.uid",
+        ".write": "$userId === auth.uid",
+        ".validate": "newData.hasChildren(['enablePush', 'enableLocal']) && newData.child('enablePush').isBoolean() && newData.child('enableLocal').isBoolean()"
+      }
     }
   }
 }

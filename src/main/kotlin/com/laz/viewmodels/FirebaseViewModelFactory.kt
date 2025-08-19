@@ -1,5 +1,6 @@
 package com.laz.viewmodels
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.laz.repositories.FirebaseCartRepository
@@ -31,7 +32,8 @@ class SecureFirebaseViewModelFactory(
     private val firebaseReturnsRepository: FirebaseReturnsRepository,
     private val firebaseOrdersRepository: FirebaseOrdersRepository,
     private val supportChatRepository: SupportChatRepository,
-    private val currentUser: StateFlow<User?>
+    private val currentUser: StateFlow<User?>,
+    private val context: Context?
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -46,14 +48,16 @@ class SecureFirebaseViewModelFactory(
             SecureFirebaseProductViewModel::class.java -> {
                 SecureFirebaseProductViewModel(
                     productRepository = firebaseProductRepository,
-                    currentUser = currentUser
+                    currentUser = currentUser,
+                    context = context
                 ) as T
             }
             SecureFirebaseCartViewModel::class.java -> {
                 SecureFirebaseCartViewModel(
                     cartRepository = firebaseCartRepository,
                     productRepository = firebaseProductRepository,
-                    currentUser = currentUser
+                    currentUser = currentUser,
+                    context = context
                 ) as T
             }
             SecureFirebaseUserViewModel::class.java -> {
@@ -74,12 +78,14 @@ class SecureFirebaseViewModelFactory(
                 FirebaseOrdersViewModel(
                     ordersRepository = firebaseOrdersRepository,
                     productRepository = firebaseProductRepository,
-                    currentUser = currentUser
+                    currentUser = currentUser,
+                    context = context
                 ) as T
             }
             SupportChatViewModel::class.java -> {
                 SupportChatViewModel(
-                    repository = supportChatRepository
+                    repository = supportChatRepository,
+                    context = context
                 ) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
@@ -172,6 +178,27 @@ object FirebaseServices {
         }
     }
     
+    fun createViewModelFactory(context: Context): SecureFirebaseViewModelFactory {
+        return SecureFirebaseViewModelFactory(
+            firebaseAuthService = authService,
+            firebaseUserRepository = userRepository,
+            firebaseProductRepository = productRepository,
+            firebaseCartRepository = cartRepository,
+            firebaseReturnsRepository = returnsRepository,
+            firebaseOrdersRepository = ordersRepository,
+            supportChatRepository = supportChatRepository,
+            currentUser = currentUser,
+            context = context
+        )
+    }
+    
+    // Secure ViewModelFactory with role-based access control
+    fun getSecureViewModelFactory(context: Context): SecureFirebaseViewModelFactory {
+        return createViewModelFactory(context)
+    }
+    
+    // Temporary compatibility properties - will be removed after UI updates
+    // These create factories without context, so notifications won't work in these ViewModels
     val viewModelFactory: SecureFirebaseViewModelFactory by lazy {
         SecureFirebaseViewModelFactory(
             firebaseAuthService = authService,
@@ -181,11 +208,11 @@ object FirebaseServices {
             firebaseReturnsRepository = returnsRepository,
             firebaseOrdersRepository = ordersRepository,
             supportChatRepository = supportChatRepository,
-            currentUser = currentUser
+            currentUser = currentUser,
+            context = null // No context available - notifications disabled
         )
     }
     
-    // Secure ViewModelFactory with role-based access control
     val secureViewModelFactory: SecureFirebaseViewModelFactory by lazy {
         viewModelFactory // Use the same instance
     }

@@ -33,7 +33,8 @@ data class CartItem(
     val userId: Long,
     val productId: Long,
     val quantity: Int,
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    val stockHoldExpiry: Long? = null
 )
 
 data class CartItemWithProduct(
