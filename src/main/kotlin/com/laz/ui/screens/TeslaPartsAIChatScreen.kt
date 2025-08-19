@@ -28,7 +28,7 @@ import coil.compose.AsyncImage
 import com.laz.models.AIChatMessage
 import com.laz.models.MessageSenderType
 import com.laz.repositories.FirebaseRealtimePotentialOrderRepository
-import com.laz.services.*
+import com.laz.services.OpenRouterAIService
 import com.laz.viewmodels.TeslaPartsAIViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -43,14 +43,13 @@ fun TeslaPartsAIChatScreen(
     val viewModel: TeslaPartsAIViewModel = viewModel(
         factory = TeslaPartsAIViewModel.Factory(
             aiService = OpenRouterAIService(),
-            aliExpressService = AliExpressSearchService(),
             potentialOrderRepository = FirebaseRealtimePotentialOrderRepository()
         )
     )
     
     val chatMessages by viewModel.chatMessages.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
-    val foundProducts by viewModel.foundProducts.collectAsState()
+    val priceEstimate by viewModel.priceEstimate.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     
     var messageText by remember { mutableStateOf("") }
@@ -175,10 +174,10 @@ fun TeslaPartsAIChatScreen(
                 items(chatMessages) { message ->
                     ChatMessageItem(
                         message = message,
-                        onCreateOrder = { productIndex ->
-                            viewModel.createPotentialOrder(customerId, customerName, productIndex)
+                        onCreateOrder = {
+                            viewModel.createPotentialOrder(customerId, customerName)
                         },
-                        foundProducts = foundProducts
+                        priceEstimate = priceEstimate
                     )
                 }
                 
@@ -228,8 +227,8 @@ fun TeslaPartsAIChatScreen(
 @Composable
 private fun ChatMessageItem(
     message: AIChatMessage,
-    onCreateOrder: (Int) -> Unit,
-    foundProducts: List<com.laz.models.AliexpressProduct>
+    onCreateOrder: () -> Unit,
+    priceEstimate: Double
 ) {
     val isBot = message.senderType == MessageSenderType.AI_BOT
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -285,23 +284,26 @@ private fun ChatMessageItem(
                     }
                 }
                 
-                // Product selection buttons (for bot messages with products)
-                if (isBot && foundProducts.isNotEmpty() && message.message.contains("Here are the best options")) {
+                // Order creation button (for bot messages with pricing)
+                if (isBot && priceEstimate > 0.0 && message.message.contains("create a potential order")) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    foundProducts.take(3).forEachIndexed { index, product ->
-                        OutlinedButton(
-                            onClick = { onCreateOrder(index) },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            Text(
-                                text = "Select Option ${index + 1}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        if (index < 2) Spacer(modifier = Modifier.height(4.dp))
+                    Button(
+                        onClick = { onCreateOrder() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingCart,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Create Order - ${priceEstimate} JOD",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
                 
